@@ -92,6 +92,7 @@ async function apiFetch(url, options = {}) {
 }
 
 /* 本地化存储修复：彻底解决昵称和头像刷新重置问题 */
+/* 本地化存储修复：彻底解决昵称和头像刷新重置问题（已增强本地优先级） */
 function loadProfileLocally() {
     const saved = localStorage.getItem('memo_local_user_profile');
     if (saved) {
@@ -116,8 +117,11 @@ async function fetchUserProfile() {
             if (remoteData.nickname && remoteData.nickname !== '点击设置昵称') userProfile.nickname = remoteData.nickname;
             if (remoteData.avatar_url) userProfile.avatar_url = remoteData.avatar_url;
             userProfile.username = localStorage.getItem('auth_username') || remoteData.username;
-            saveProfileLocally();
         }
+        saveProfileLocally();   // <-- 关键！远程数据更新后立刻保存到本地
+    } else {
+        // 游客模式也强制走本地存储（防止重置）
+        saveProfileLocally();
     }
     renderProfileUI();
 }

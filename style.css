@@ -137,8 +137,26 @@ header { display: flex; justify-content: space-between; align-items: center; pad
 }
 .lock-modal-card.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
 .lock-modal-title { font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 20px; padding: 0 20px; color: #000; }
-.lock-option-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 15px; color: #1c1c1e; border-top: 0.5px solid #e5e5ea; cursor: pointer; text-align: left; }
-.lock-cancel-btn { text-align: center; padding: 14px; font-size: 17px; font-weight: bold; color: var(--ios-yellow); border-top: 0.5px solid #e5e5ea; cursor: pointer; background: #f9f9f9; margin-top: 8px; }
+.lock-option-row { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 16px 20px; font-size: 15px; color: #1c1c1e; 
+    border-top: 0.5px solid #e5e5ea; cursor: pointer; text-align: left; 
+}
+
+.lock-radio-dot { 
+    width: 22px; height: 22px; border-radius: 50%; 
+    border: 2.5px solid #e5e5ea; 
+    background: transparent; 
+    cursor: pointer; 
+    flex-shrink: 0; 
+    transition: all 0.2s ease;
+}
+
+.lock-cancel-btn { 
+    text-align: center; padding: 14px; font-size: 17px; font-weight: bold; 
+    color: var(--ios-yellow); border-top: 0.5px solid #e5e5ea; 
+    cursor: pointer; background: #f9f9f9; margin-top: 8px; 
+}
 
 #context-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(10px); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
 #context-overlay.active { opacity: 1; pointer-events: auto; }
