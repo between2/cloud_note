@@ -25,7 +25,7 @@ async function hashPassword(password) {
 // 2. 签发 JWT
 async function signJWT(payload, secret) {
     const header = { alg: 'HS256', typ: 'JWT' };
-    const expPayload = { ...payload, exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) }; // 7天有效
+    const expPayload = { ...payload, exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) };
 
     const encHeader = base64urlEncode(new TextEncoder().encode(JSON.stringify(header)));
     const encPayload = base64urlEncode(new TextEncoder().encode(JSON.stringify(expPayload)));
@@ -63,7 +63,6 @@ async function verifyJWT(token, secret) {
     }
 }
 
-// 通用 JSON 响应包装
 function jsonRes(data, status = 200) {
     return new Response(JSON.stringify(data), {
         status,
@@ -71,7 +70,6 @@ function jsonRes(data, status = 200) {
     });
 }
 
-// 主入口 handler
 export async function onRequest(context) {
     const { request, env } = context;
     const url = new URL(request.url);
@@ -79,7 +77,7 @@ export async function onRequest(context) {
     const method = request.method;
     const secret = env.JWT_SECRET || "default_jwt_secret_key_123456";
 
-    // ----------------- 1. 注册接口 -----------------
+    // 1. 注册接口
     if (path === '/api/register' && method === 'POST') {
         const { username, password, guestNotes = [] } = await request.json();
         if (!username || !password) return jsonRes({ error: "账号或密码不能为空" }, 400);
@@ -88,10 +86,10 @@ export async function onRequest(context) {
         if (existing) return jsonRes({ error: "用户名已存在" }, 400);
 
         const pwdHash = await hashPassword(password);
-        const user = await env.DB.prepare("INSERT INTO users (username, password_hash) VALUES (?, ?) RETURNING id").bind(username, pwdHash).first();
+        const user = await env.DB.prepare("INSERT INTO users (username, password_hash, nickname) VALUES (?, ?, ?) RETURNING id")
+            .bind(username, pwdHash, username).first();
         const userId = user.id;
 
-        // 自动将游客笔记合并导入数据库
         if (guestNotes.length > 0) {
             const stmts = guestNotes.map(n => 
                 env.DB.prepare("INSERT INTO notes (title, content, is_pinned, password, folder_id, user_id) VALUES (?, ?, ?, ?, ?, ?)")
@@ -101,18 +99,17 @@ export async function onRequest(context) {
         }
 
         const token = await signJWT({ userId, username }, secret);
-        return jsonRes({ success: true, token, username });
+        return jsonRes({ success: true, token, username, nickname: username });
     }
 
-    // ----------------- 2. 登录接口 -----------------
+    // 2. 登录接口
     if (path === '/api/login' && method === 'POST') {
         const { username, password, guestNotes = [] } = await request.json();
         const pwdHash = await hashPassword(password);
-        const user = await env.DB.prepare("SELECT id, username FROM users WHERE username = ? AND password_hash = ?").bind(username, pwdHash).first();
+        const user = await env.DB.prepare("SELECT id, username, nickname, avatar_url FROM users WHERE username = ? AND password_hash = ?").bind(username, pwdHash).first();
 
         if (!user) return jsonRes({ error: "账号或密码错误" }, 401);
 
-        // 登录时如果有游客笔记，也一并导入合并
         if (guestNotes.length > 0) {
             const stmts = guestNotes.map(n => 
                 env.DB.prepare("INSERT INTO notes (title, content, is_pinned, password, folder_id, user_id) VALUES (?, ?, ?, ?, ?, ?)")
@@ -122,10 +119,10 @@ export async function onRequest(context) {
         }
 
         const token = await signJWT({ userId: user.id, username: user.username }, secret);
-        return jsonRes({ success: true, token, username: user.username });
+        return jsonRes({ success: true, token, username: user.username, nickname: user.nickname || user.username, avatar_url: user.avatar_url });
     }
 
-    // ----------------- 3. 鉴权验证 -----------------
+    // 3. 鉴权中间件
     const authHeader = request.headers.get('Authorization');
     let userId = null;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -135,10 +132,30 @@ export async function onRequest(context) {
     }
 
     if (!userId) {
-        return jsonRes({ error: "未登录或登录凭证失效" }, 401);
+        return jsonRes({ error: "未登录或凭证无效" }, 401);
     }
 
-    // ----------------- 4. 笔记数据接口 (需要登录) -----------------
+    // 4. 用户资料接口 (个人信息、修改头像昵称、统计数)
+    if (path === '/api/user/profile') {
+        if (method === 'GET') {
+            const user = await env.DB.prepare("SELECT username, nickname, avatar_url FROM users WHERE id = ?").bind(userId).first();
+            const noteCountRes = await env.DB.prepare("SELECT COUNT(*) as count FROM notes WHERE user_id = ?").bind(userId).first();
+            return jsonRes({
+                username: user?.username || '',
+                nickname: user?.nickname || user?.username || '未设置昵称',
+                avatar_url: user?.avatar_url || '',
+                note_count: noteCountRes?.count || 0
+            });
+        }
+        if (method === 'PUT') {
+            const { nickname, avatar_url } = await request.json();
+            await env.DB.prepare("UPDATE users SET nickname = COALESCE(?, nickname), avatar_url = COALESCE(?, avatar_url) WHERE id = ?")
+                .bind(nickname, avatar_url, userId).run();
+            return jsonRes({ success: true });
+        }
+    }
+
+    // 5. 笔记 CRUD
     if (path === '/api/notes') {
         if (method === 'GET') {
             const { results } = await env.DB.prepare("SELECT * FROM notes WHERE user_id = ? ORDER BY is_pinned DESC, created_at DESC").bind(userId).all();
@@ -163,7 +180,7 @@ export async function onRequest(context) {
         }
     }
 
-    // ----------------- 5. 文件夹接口 (需要登录) -----------------
+    // 6. 文件夹 CRUD
     if (path === '/api/folders') {
         if (method === 'GET') {
             const { results } = await env.DB.prepare("SELECT * FROM folders WHERE user_id = ? ORDER BY id ASC").bind(userId).all();
