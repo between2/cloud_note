@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>备忘录</title>
-    <!-- 引入第 2 部分 CSS 样式文件 -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -173,71 +172,77 @@
         <div class="auth-switch" id="auth-switch-btn" onclick="toggleAuthMode()">没有账号？立即注册</div>
     </div>
 
-    <!-- 6. 编辑器视图 (图3风格全功能重构) -->
+    <!-- 6. 编辑器视图 (图2样式还原) -->
     <div id="editor-view" class="sub-view">
         <div class="sub-header" style="border-bottom: 0.5px solid #e5e5ea;">
-            <button class="btn" onclick="saveNote()">&#10094; 备忘录</button>
-            <div class="word-count-badge" id="editor-word-count-tag"></div>
-            <button class="btn" onclick="saveNote()" style="font-weight: bold; margin-left:12px;">完成</button>
+            <button class="btn" onclick="saveNote()">&#10094;</button>
+            <div style="display:flex; gap:16px; align-items:center;">
+                <span class="editor-header-icon" onclick="formatDoc('undo')">↶</span>
+                <span class="editor-header-icon" onclick="formatDoc('redo')">↷</span>
+                <button class="btn" onclick="saveNote()" style="font-weight: bold; font-size: 18px;">✓</button>
+            </div>
         </div>
         
         <input type="text" id="note-title-input" class="title-input" placeholder="标题">
         <div id="note-content-editor" class="editor-content" contenteditable="true" placeholder="开始输入内容..." oninput="onEditorInput()"></div>
 
-        <!-- 底部快捷功能导航栏 (图3) -->
+        <!-- 图2风格：展开排版面板 -->
+        <div id="editor-format-panel" class="format-panel">
+            <!-- 基础样式按钮 -->
+            <div class="format-row style-btns-row">
+                <button class="fmt-btn" onclick="formatDoc('bold')"><b>B</b></button>
+                <button class="fmt-btn" onclick="formatDoc('italic')"><i>I</i></button>
+                <button class="fmt-btn" onclick="formatDoc('underline')"><u>U</u></button>
+                <button class="fmt-btn" onclick="formatDoc('strikeThrough')"><s>S</s></button>
+                <button class="fmt-btn" onclick="toggleHighlight()">🖌️</button>
+            </div>
+
+            <!-- 字号选择器 -->
+            <div class="format-section">
+                <div class="format-label">字号</div>
+                <div class="size-selector-row">
+                    <span class="size-opt" onclick="setEditorFontSize('10', this)">10</span>
+                    <span class="size-opt" onclick="setEditorFontSize('12', this)">12</span>
+                    <span class="size-opt" onclick="setEditorFontSize('14', this)">14</span>
+                    <span class="size-opt active" onclick="setEditorFontSize('16', this)">16</span>
+                    <span class="size-opt" onclick="setEditorFontSize('18', this)">18</span>
+                    <span class="size-opt" onclick="setEditorFontSize('20', this)">20</span>
+                    <span class="size-opt" onclick="setEditorFontSize('24', this)">24</span>
+                    <span class="size-opt" onclick="setEditorFontSize('36', this)">36</span>
+                </div>
+            </div>
+
+            <!-- 颜色选择器 -->
+            <div class="format-section">
+                <div class="format-label">字体颜色</div>
+                <div class="color-palette-row">
+                    <div class="color-block" style="background:#000000;" onclick="setEditorColor('#000000', this)"></div>
+                    <div class="color-block" style="background:#48484a;" onclick="setEditorColor('#48484a', this)"></div>
+                    <div class="color-block" style="background:#8e8e93;" onclick="setEditorColor('#8e8e93', this)"></div>
+                    <div class="color-block" style="background:#ff3b30;" onclick="setEditorColor('#ff3b30', this)"></div>
+                    <div class="color-block" style="background:#ff9500;" onclick="setEditorColor('#ff9500', this)"></div>
+                    <div class="color-block" style="background:#ffcc00;" onclick="setEditorColor('#ffcc00', this)"></div>
+                    <div class="color-block active" style="background:#34c759;" onclick="setEditorColor('#34c759', this)">✓</div>
+                    <div class="color-block" style="background:#5ac8fa;" onclick="setEditorColor('#5ac8fa', this)"></div>
+                    <div class="color-block" style="background:#007aff;" onclick="setEditorColor('#007aff', this)"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部固定工具栏（图2图标栏） -->
         <div class="editor-bottom-bar">
-            <div class="editor-icon-btn" onclick="alert('AI功能暂未配置')">🤖</div>
-            <div class="editor-icon-btn" onclick="toggleFolderSelect()">📁</div>
-            <div class="editor-icon-btn active" id="btn-toggle-aa" onclick="toggleAaPanel()">Aa</div>
-            <div class="editor-icon-btn" onclick="formatDoc('justifyLeft')">☰</div>
-            <div class="editor-icon-btn" onclick="insertChecklist()">☑</div>
-            <div class="editor-icon-btn" onclick="triggerNoteImageSelect()">📷</div>
-            <div class="editor-icon-btn" onclick="alert('更多选项')">➕</div>
+            <button class="bottom-tool-btn" onclick="alert('AI 辅助已就绪')"><span class="ai-badge">AI</span></button>
+            <button class="bottom-tool-btn">🔲</button>
+            <button class="bottom-tool-btn active" id="btn-toggle-aa" onclick="toggleAaPanel()">Aa</button>
+            <button class="bottom-tool-btn" onclick="formatDoc('insertUnorderedList')">≡</button>
+            <button class="bottom-tool-btn" onclick="insertChecklist()">☑</button>
+            <button class="bottom-tool-btn" id="img-upload-btn" onclick="triggerNoteImageSelect()">🖼</button>
+            <input type="file" id="note-image-file-input" accept="image/*" style="display:none;" onchange="uploadNoteImage(this)">
+            <button class="bottom-tool-btn" onclick="toggleFolderSelect()">⊕</button>
+            <div class="word-count-badge" id="editor-word-count-tag"></div>
         </div>
-
-        <!-- Aa 高级排版展开面板 (图3样式) -->
-        <div id="editor-aa-panel" class="editor-aa-panel active">
-            <!-- 第一排：样式按键 -->
-            <div class="style-row">
-                <button class="style-btn" onclick="formatDoc('bold')"><b>B</b></button>
-                <button class="style-btn" onclick="formatDoc('italic')"><i>I</i></button>
-                <button class="style-btn" onclick="formatDoc('underline')"><u>U</u></button>
-                <button class="style-btn" onclick="formatDoc('strikethrough')"><s>S</s></button>
-                <button class="style-btn" onclick="toggleHighlight()">🖊️</button>
-            </div>
-
-            <!-- 第二排：字号选择 (图3横向滑动) -->
-            <div class="panel-section-label">字号</div>
-            <div class="fontsize-scroll-row">
-                <div class="size-opt" onclick="setEditorFontSize(10, this)">10</div>
-                <div class="size-opt" onclick="setEditorFontSize(12, this)">12</div>
-                <div class="size-opt" onclick="setEditorFontSize(14, this)">14</div>
-                <div class="size-opt active" onclick="setEditorFontSize(16, this)">16</div>
-                <div class="size-opt" onclick="setEditorFontSize(18, this)">18</div>
-                <div class="size-opt" onclick="setEditorFontSize(20, this)">20</div>
-                <div class="size-opt" onclick="setEditorFontSize(24, this)">24</div>
-                <div class="size-opt" onclick="setEditorFontSize(36, this)">36</div>
-            </div>
-
-            <!-- 第三排：字体颜色 (图3圆块调色盘) -->
-            <div class="panel-section-label">字体颜色</div>
-            <div class="color-picker-row">
-                <div class="color-block" style="background:#1a1a1a;" onclick="setEditorColor('#1a1a1a', this)"></div>
-                <div class="color-block" style="background:#4a4a4a;" onclick="setEditorColor('#4a4a4a', this)"></div>
-                <div class="color-block" style="background:#8a8a8a;" onclick="setEditorColor('#8a8a8a', this)"></div>
-                <div class="color-block" style="background:#ff2d55;" onclick="setEditorColor('#ff2d55', this)"></div>
-                <div class="color-block" style="background:#ff9500;" onclick="setEditorColor('#ff9500', this)"></div>
-                <div class="color-block" style="background:#ffcc00;" onclick="setEditorColor('#ffcc00', this)"></div>
-                <div class="color-block active" style="background:#34c759;" onclick="setEditorColor('#34c759', this)">✓</div>
-                <div class="color-block" style="background:#007aff;" onclick="setEditorColor('#007aff', this)"></div>
-            </div>
-        </div>
-
-        <input type="file" id="note-image-file-input" accept="image/*" style="display:none;" onchange="uploadNoteImage(this)">
-        <select id="editor-folder-select" style="display:none;"></select>
     </div>
 
-    <!-- 引入第 3 部分 JavaScript 逻辑文件 -->
     <script src="main.js"></script>
 </body>
 </html>
