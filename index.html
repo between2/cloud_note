@@ -100,10 +100,11 @@
         #editor-view { display: none; position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: white; z-index: 100; flex-direction: column; }
         .editor-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #e5e5ea; }
         .title-input { border: none; outline: none; font-size: 22px; font-weight: bold; padding: 16px 20px 8px; width: calc(100% - 40px); font-family: inherit; }
-        .toolbar { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background: #f8f8f8; border-bottom: 1px solid #e5e5ea; flex-wrap: wrap; }
-        .tool-btn { background: white; border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 14px; cursor: pointer; }
+        .toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 20px; background: #f8f8f8; border-bottom: 1px solid #e5e5ea; flex-wrap: wrap; }
+        .tool-btn { background: white; border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; }
         .color-picker { border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; background: transparent; }
         .editor-content { flex: 1; padding: 12px 20px; font-size: 17px; line-height: 1.5; outline: none; overflow-y: auto; word-break: break-word; user-select: text; -webkit-user-select: text; }
+        .editor-content img { max-width: 100%; border-radius: 8px; margin: 8px 0; display: block; }
         .editor-content[placeholder]:empty:before { content: attr(placeholder); color: #a9a9a9; }
     </style>
 </head>
@@ -154,7 +155,10 @@
                 <option value="7">超大字号</option>
             </select>
             <input type="color" class="color-picker" onchange="formatDoc('foreColor', this.value)">
-            <!-- 预留分类选择 -->
+            <!-- 图片上传按钮 -->
+            <button class="tool-btn" id="img-upload-btn" onclick="triggerImageSelect()">📷 图片</button>
+            <input type="file" id="image-file-input" accept="image/*" style="display:none;" onchange="uploadImageToBed(this)">
+            <!-- 文件夹分类 -->
             <select id="editor-folder-select" class="tool-btn"></select>
         </div>
 
@@ -162,10 +166,13 @@
     </div>
 
     <script>
+        // 【重要】替换为你实际的图床完整域名（不要带末尾斜杠）
+        const IMG_BED_DOMAIN = "https://wp.fuchen.indevs.in";
+
         let currentNoteId = null;
         let notesData = [];
         let foldersData = [];
-        let currentFilter = 'all'; // 'all', 'locked', 或 folder_id (数字)
+        let currentFilter = 'all';
         let activeMenuNoteId = null;
 
         function formatDoc(cmd, value = null) { document.execCommand(cmd, false, value); }
@@ -191,6 +198,65 @@
                 else notesData = [];
             } catch (e) { notesData = []; }
             renderNotes();
+        }
+
+        /* 图床图片上传逻辑 (按原图不压缩，传至 /备忘录/ 目录) */
+        function triggerImageSelect() {
+            document.getElementById('image-file-input').click();
+        }
+
+        async function uploadImageToBed(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const btn = document.getElementById('img-upload-btn');
+            const originalText = btn.innerHTML;
+            btn.innerText = "⏳ 上传中...";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('uploadFolder', '/备忘录/');
+            formData.append('uploadChannel', 'huggingface');
+            formData.append('channelName', '浮尘');
+            formData.append('uploadNameType', 'original');
+
+            try {
+                const uploadUrl = `${IMG_BED_DOMAIN}/upload?uploadChannel=huggingface&uploadFolder=${encodeURIComponent('/备忘录/')}`;
+                const res = await fetch(uploadUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+                
+                let imageUrl = '';
+                if (typeof data === 'string') imageUrl = data;
+                else if (data.url) imageUrl = data.url;
+                else if (data.src) imageUrl = data.src;
+                else if (Array.isArray(data) && data[0]) imageUrl = data[0].src || data[0].url || data[0];
+                else if (data.data && data.data.url) imageUrl = data.data.url;
+
+                if (imageUrl) {
+                    insertImageToEditor(imageUrl);
+                } else {
+                    alert('上传成功但未获取到链接，请查看图床返回数据');
+                }
+            } catch (err) {
+                console.error('上传图片失败:', err);
+                alert('图片上传失败，请检查图床域名或网络');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                input.value = '';
+            }
+        }
+
+        function insertImageToEditor(url) {
+            const editor = document.getElementById('note-content-editor');
+            editor.focus();
+            const imgHtml = `<img src="${url}" style="max-width:100%; border-radius:8px; margin:8px 0; display:block;" /><br>`;
+            document.execCommand('insertHTML', false, imgHtml);
         }
 
         /* 侧边栏与过滤逻辑 */
@@ -221,7 +287,6 @@
             }
             menu.innerHTML = html;
 
-            // 更新编辑器内部的文件夹下拉菜单
             const select = document.getElementById('editor-folder-select');
             select.innerHTML = `<option value="0">未分类</option>` + 
                 foldersData.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
@@ -260,7 +325,6 @@
             }
         }
 
-        /* 根据当前选中分组筛选列表 */
         function getFilteredNotes() {
             if (currentFilter === 'all') return notesData;
             if (currentFilter === 'locked') return notesData.filter(n => !!n.password);
@@ -381,7 +445,7 @@
             }
         }
 
-        /* 极致长按手势与侧滑 */
+        /* 长按与侧滑逻辑 */
         let startX = 0, startY = 0, currentX = 0, currentOpenId = null;
         let longPressTimer = null, isLongPressed = false;
 
@@ -485,7 +549,7 @@
             if (action === 'delete') deleteNote(id, { stopPropagation: () => {} });
         }
 
-        /* 编辑器逻辑 */
+        /* 编辑器基础逻辑 */
         function openEditor(id = null) {
             currentNoteId = id;
             const note = notesData.find(n => n.id === id);
@@ -497,7 +561,6 @@
             } else {
                 document.getElementById('note-title-input').value = '';
                 document.getElementById('note-content-editor').innerHTML = '';
-                // 如果当前处于某个自定义分类下，新建时默认选中该分类
                 document.getElementById('editor-folder-select').value = (typeof currentFilter === 'number') ? currentFilter : 0;
             }
 
