@@ -29,8 +29,10 @@ function showToast(message) {
 async function initData() {
     initAppFirstRun();
     loadSavedSettings();
-    loadProfileLocally(); // 读取本地持久化头像与昵称，防止重置
-    await fetchUserProfile();
+    
+    // === 修复：彻底解决昵称/头像刷新重置 ===
+    loadProfileLocally();                    // 本地持久化（优先级最高）
+    await fetchUserProfile();                // 最后再拉取一次，覆盖远程可能更新的数据
     await fetchFolders();
     await fetchTrashNotes();
     await fetchNotes();

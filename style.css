@@ -186,12 +186,15 @@ header { display: flex; justify-content: space-between; align-items: center; pad
 .editor-bottom-bar { 
     position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; height: 50px; 
     background: rgba(255,255,255,0.95); backdrop-filter: blur(15px); border-top: 0.5px solid #e5e5ea; 
-    display: flex; justify-content: space-around; align-items: center; padding: 0 10px; z-index: 260;
+    display: flex; justify-content: space-between; align-items: center; padding: 0 12px; z-index: 260;
 }
 .bottom-tool-btn { background: none; border: none; font-size: 18px; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 8px; }
 .bottom-tool-btn.active { color: var(--ios-yellow); font-weight: bold; }
 .ai-badge { font-size: 11px; font-weight: 800; border: 1.5px solid #333; border-radius: 5px; padding: 0 3px; }
-.word-count-badge { font-size: 12px; color: #8e8e93; }
+.word-count-badge { 
+    font-size: 12px; color: #8e8e93; position: absolute; right: 12px; bottom: 16px; 
+    pointer-events: none; /* 可选，如果不想挡住其他按钮 */
+}
 
 /* 优雅的 Toast 成功提示动画 */
 .app-toast {
