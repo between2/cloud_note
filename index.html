@@ -8,9 +8,6 @@
 </head>
 <body>
 
-    <!-- Toast 消息提示组件 -->
-    <div id="toast-message" class="toast-toast">修改成功</div>
-
     <!-- 1. 笔记主页 TAB -->
     <div id="tab-notes" class="tab-view active">
         <header>
@@ -134,7 +131,7 @@
         <div id="trash-list" style="padding: 0 20px 20px;"></div>
     </div>
 
-    <!-- 5. 加锁笔记显示设置 弹窗 (图3功能修复) -->
+    <!-- 5. 加锁笔记显示设置 弹窗 -->
     <div id="lock-modal-overlay" class="modal-overlay" onclick="closeLockModal()"></div>
     <div id="lock-modal-card" class="lock-modal-card">
         <div class="lock-modal-title">加锁笔记显示设置</div>
@@ -175,33 +172,27 @@
         <div class="auth-switch" id="auth-switch-btn" onclick="toggleAuthMode()">没有账号？立即注册</div>
     </div>
 
-    <!-- 6. 编辑器视图 (对标图2布局) -->
+    <!-- 6. 编辑器视图 (图3样式还原) -->
     <div id="editor-view" class="sub-view">
         <div class="sub-header" style="border-bottom: 0.5px solid #e5e5ea;">
             <button class="btn" onclick="saveNote()">&#10094;</button>
             <div style="display:flex; gap:16px; align-items:center;">
-                <span class="editor-header-icon" onclick="formatDoc('undo')">↶</span>
-                <span class="editor-header-icon" onclick="formatDoc('redo')">↷</span>
-                <button class="btn" onclick="saveNote()" style="font-weight: bold; font-size: 18px;">✓</button>
+                <span class="editor-header-icon" onclick="openSubView('settings-view')">⚙️</span>
+                <span class="editor-header-icon" onclick="saveNote()">✓</span>
             </div>
         </div>
         
-        <!-- 标题输入框 -->
         <input type="text" id="note-title-input" class="title-input" placeholder="标题">
-        
-        <!-- 图2标准信息栏: 日期 | 字数 | 分类 -->
-        <div class="editor-meta-bar">
-            <span id="editor-datetime-tag">2026/7/14 18:55</span>
-            <span class="editor-meta-divider">|</span>
-            <span id="editor-wordcount-tag">0字</span>
-            <span class="editor-meta-divider">|</span>
-            <span id="editor-folder-select-tag" class="editor-folder-dropdown" onclick="selectFolderForCurrentNote()">未分类 ⌵</span>
+        <!-- 还原图3：日期 | 字数 | 分类 -->
+        <div class="editor-meta-info" id="editor-meta-bar">
+            <span id="editor-date-display">2026/7/14 18:55</span> | 
+            <span id="editor-word-count-display">0 字</span> | 
+            <span id="editor-folder-display" onclick="promptChangeFolder()" style="color:var(--ios-yellow); cursor:pointer;">未分类 ∨</span>
         </div>
 
-        <!-- 文本编辑器区域 -->
         <div id="note-content-editor" class="editor-content" contenteditable="true" placeholder="开始输入内容..." oninput="onEditorInput()"></div>
 
-        <!-- 展开的 Aa 排版面板 -->
+        <!-- 展开排版面板 -->
         <div id="editor-format-panel" class="format-panel">
             <div class="format-row style-btns-row">
                 <button class="fmt-btn" onclick="formatDoc('bold')"><b>B</b></button>
@@ -241,15 +232,19 @@
             </div>
         </div>
 
-        <!-- 精简后的底部悬浮工具栏 (包含精确保留的工具: Aa, 列表≡, ☑, 🖼) -->
+        <!-- 精简后的底部固定工具栏（去掉了第1,2,4,5,7个无用按钮） -->
         <div class="editor-bottom-bar">
-            <button class="bottom-tool-btn" id="btn-toggle-aa" onclick="toggleAaPanel()">Aa</button>
+            <button class="bottom-tool-btn" onclick="alert('AI 辅助已就绪')"><span class="ai-badge">AI</span></button>
+            <button class="bottom-tool-btn active" id="btn-toggle-aa" onclick="toggleAaPanel()">Aa</button>
             <button class="bottom-tool-btn" onclick="formatDoc('insertUnorderedList')">≡</button>
-            <button class="bottom-tool-btn" onclick="insertChecklist()">☑</button>
             <button class="bottom-tool-btn" id="img-upload-btn" onclick="triggerNoteImageSelect()">🖼</button>
             <input type="file" id="note-image-file-input" accept="image/*" style="display:none;" onchange="uploadNoteImage(this)">
+            <div class="word-count-badge" id="editor-word-count-tag"></div>
         </div>
     </div>
+
+    <!-- 全局 Toast 提示 -->
+    <div id="app-toast" class="app-toast">操作成功</div>
 
     <script src="main.js"></script>
 </body>
