@@ -64,7 +64,7 @@
             color: var(--ios-yellow); border-radius: 10px; text-align: center; font-weight: 500; cursor: pointer;
         }
 
-        /* 卡片及侧滑动画 */
+        /* 卡片及侧滑动作 */
         .note-container { position: relative; margin-bottom: 10px; border-radius: 12px; overflow: hidden; background: #c7c7cc; }
         .swipe-actions { position: absolute; right: 0; top: 0; bottom: 0; display: flex; width: 210px; z-index: 1; }
         .action-btn { flex: 1; border: none; color: white; font-size: 15px; font-weight: 500; display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -96,8 +96,27 @@
         .menu-item { padding: 14px 18px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(0,0,0,0.1); cursor: pointer; }
         .menu-item.danger { color: var(--delete-red); }
 
-        /* 编辑器界面 */
-        #editor-view { display: none; position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: white; z-index: 100; flex-direction: column; }
+        /* 编辑器界面（带 iOS 原生进出动画） */
+        #editor-view { 
+            position: fixed; 
+            inset: 0; 
+            margin: 0 auto; 
+            max-width: 600px; 
+            background: white; 
+            z-index: 100; 
+            display: flex; 
+            flex-direction: column; 
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(100%);
+            transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+        }
+        #editor-view.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
+
         .editor-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #e5e5ea; }
         .title-input { border: none; outline: none; font-size: 22px; font-weight: bold; padding: 16px 20px 8px; width: calc(100% - 40px); font-family: inherit; }
         .toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 20px; background: #f8f8f8; border-bottom: 1px solid #e5e5ea; flex-wrap: wrap; }
@@ -166,7 +185,7 @@
     </div>
 
     <script>
-        // 【重要】替换为你实际的图床完整域名（不要带末尾斜杠）
+        // 图床完整域名（已为你配置好）
         const IMG_BED_DOMAIN = "https://wp.fuchen.indevs.in";
 
         let currentNoteId = null;
@@ -200,67 +219,63 @@
             renderNotes();
         }
 
-        /* 图床图片上传逻辑 (按原图不压缩，传至 /备忘录/ 目录) */
+        /* 图床图片上传逻辑 */
         function triggerImageSelect() {
             document.getElementById('image-file-input').click();
         }
 
         async function uploadImageToBed(input) {
-    const file = input.files[0];
-    if (!file) return;
+            const file = input.files[0];
+            if (!file) return;
 
-    // ⚠️ 请确保这里的域名是你图床的真实访问域名（去掉末尾斜杠）
-    const IMG_BED_DOMAIN = "https://wp.fuchen.indevs.in"; 
+            const btn = document.getElementById('img-upload-btn');
+            const originalText = btn.innerHTML;
+            btn.innerText = "⏳ 上传中...";
+            btn.disabled = true;
 
-    const btn = document.getElementById('img-upload-btn');
-    const originalText = btn.innerHTML;
-    btn.innerText = "⏳ 上传中...";
-    btn.disabled = true;
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('uploadFolder', '/备忘录/');
+            formData.append('uploadChannel', 'huggingface');
+            formData.append('channelName', '浮尘');
+            formData.append('uploadNameType', 'original');
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('uploadFolder', '/备忘录/');
-    formData.append('uploadChannel', 'huggingface');
-    formData.append('channelName', '浮尘');
-    formData.append('uploadNameType', 'original');
+            try {
+                const uploadUrl = `${IMG_BED_DOMAIN}/upload?uploadChannel=huggingface&uploadFolder=${encodeURIComponent('/备忘录/')}`;
+                const res = await fetch(uploadUrl, {
+                    method: 'POST',
+                    body: formData
+                });
 
-    try {
-        const uploadUrl = `${IMG_BED_DOMAIN}/upload?uploadChannel=huggingface&uploadFolder=${encodeURIComponent('/备忘录/')}`;
-        const res = await fetch(uploadUrl, {
-            method: 'POST',
-            body: formData
-        });
+                const data = await res.json();
+                
+                let imageUrl = '';
+                if (typeof data === 'string') imageUrl = data;
+                else if (data.url) imageUrl = data.url;
+                else if (data.src) imageUrl = data.src;
+                else if (Array.isArray(data) && data[0]) imageUrl = data[0].src || data[0].url || data[0];
+                else if (data.data && data.data.url) imageUrl = data.data.url;
 
-        const data = await res.json();
-        console.log("图床返回数据:", data); // 方便在控制台查看返回内容
-        
-        let imageUrl = '';
-        if (typeof data === 'string') imageUrl = data;
-        else if (data.url) imageUrl = data.url;
-        else if (data.src) imageUrl = data.src;
-        else if (Array.isArray(data) && data[0]) imageUrl = data[0].src || data[0].url || data[0];
-        else if (data.data && data.data.url) imageUrl = data.data.url;
-
-        if (imageUrl) {
-            // 💡 关键修正：如果返回的是相对路径（如 /file/xxx.png），自动拼接图床完整域名
-            if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-                const baseUrl = IMG_BED_DOMAIN.replace(/\/+$/, '');
-                const path = imageUrl.replace(/^\/+/, '');
-                imageUrl = `${baseUrl}/${path}`;
+                if (imageUrl) {
+                    // 拼接完整网络路径，解决相对路径导致的裂图问题
+                    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+                        const baseUrl = IMG_BED_DOMAIN.replace(/\/+$/, '');
+                        const path = imageUrl.replace(/^\/+/, '');
+                        imageUrl = `${baseUrl}/${path}`;
+                    }
+                    insertImageToEditor(imageUrl);
+                } else {
+                    alert('上传成功但未解析出图片链接');
+                }
+            } catch (err) {
+                console.error('上传图片失败:', err);
+                alert('图片上传失败，请检查图床域名或跨域设置');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                input.value = '';
             }
-            insertImageToEditor(imageUrl);
-        } else {
-            alert('上传成功但未解析出链接，请打开浏览器 F12 控制台查看返回结果');
         }
-    } catch (err) {
-        console.error('上传图片失败:', err);
-        alert('图片上传失败，请检查图床域名或跨域(CORS)设置');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        input.value = '';
-    }
-}
 
         function insertImageToEditor(url) {
             const editor = document.getElementById('note-content-editor');
@@ -400,7 +415,12 @@
         }
 
         function clickNote(id) {
-            if (currentOpenId === id) return;
+            // 如果其他卡片处于侧滑打开状态，点击时仅重置卡片，不打开笔记
+            if (currentOpenId !== null) {
+                resetItem(currentOpenId);
+                return;
+            }
+
             const note = notesData.find(n => n.id === id);
             if (!note) return;
 
@@ -455,13 +475,14 @@
             }
         }
 
-        /* 长按与侧滑逻辑 */
+        /* 修复后的长按与侧滑逻辑 */
         let startX = 0, startY = 0, currentX = 0, currentOpenId = null;
         let longPressTimer = null, isLongPressed = false;
 
         function handleTouchStart(e, id) {
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
+            currentX = startX; // 关键修复：初始化 currentX，避免未移动时产生错误滑动计算
             isLongPressed = false;
             const item = document.getElementById(`item-${id}`);
 
@@ -559,7 +580,7 @@
             if (action === 'delete') deleteNote(id, { stopPropagation: () => {} });
         }
 
-        /* 编辑器基础逻辑 */
+        /* 带平滑过渡动画的编辑器切换控制 */
         function openEditor(id = null) {
             currentNoteId = id;
             const note = notesData.find(n => n.id === id);
@@ -574,11 +595,11 @@
                 document.getElementById('editor-folder-select').value = (typeof currentFilter === 'number') ? currentFilter : 0;
             }
 
-            document.getElementById('editor-view').style.display = 'flex';
+            document.getElementById('editor-view').classList.add('active');
         }
 
         function closeEditor() {
-            document.getElementById('editor-view').style.display = 'none';
+            document.getElementById('editor-view').classList.remove('active');
         }
 
         async function saveNote() {
