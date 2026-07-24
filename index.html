@@ -1,223 +1,221 @@
-
-    <!DOCTYPE html>
-    <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>备忘录</title>
-        <style>
-            :root { --ios-yellow: #e5a90f; --bg: #f2f2f7; --text: #000; --delete-red: #ff3b30; }
-            body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif; background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
-            header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 34px; font-weight: bold; }
-            .btn { color: var(--ios-yellow); background: none; border: none; font-size: 17px; cursor: pointer; padding: 0; }
-            #notes-list { padding: 0 20px; overflow-x: hidden; }
-            
-            .note-container { position: relative; margin-bottom: 10px; border-radius: 10px; overflow: hidden; background: var(--delete-red); }
-            
-            .note-item { 
-                background: white; 
-                padding: 12px 16px; 
-                position: relative; 
-                z-index: 2; 
-                transition: transform 0.3s ease; 
-                touch-action: pan-y;
-            }
-            .note-title { font-weight: 500; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .note-item-date { font-size: 13px; color: #8e8e93; margin-top: 4px; }
-            
-            .delete-btn {
-                position: absolute;
-                right: 0;
-                top: 0;
-                bottom: 0;
-                width: 80px;
-                background: var(--delete-red);
-                color: white;
-                border: none;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 16px;
-                font-weight: 500;
-                z-index: 1;
-            }
-
-            #editor-view { display: none; position: fixed; inset: 0; background: white; z-index: 10; flex-direction: column; }
-            .editor-header { display: flex; justify-content: space-between; padding: 16px 20px; }
-            textarea { flex: 1; border: none; padding: 0 20px 20px; font-size: 17px; line-height: 1.5; outline: none; font-family: inherit; resize: none; }
-        </style>
-    </head>
-    <body>
-        <header>
-            <div>备忘录</div>
-            <button class="btn" onclick="openEditor()">&#10133;</button>
-        </header>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>备忘录</title>
+    <style>
+        :root { --ios-yellow: #e5a90f; --bg: #f2f2f7; --text: #000; --delete-red: #ff3b30; }
+        body { 
+            margin: 0 auto; 
+            max-width: 600px; /* 适配电脑屏幕，居中显示 */
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            -webkit-tap-highlight-color: transparent; 
+            overflow-x: hidden;
+            min-height: 100vh;
+            box-shadow: 0 0 15px rgba(0,0,0,0.05); /* 在电脑端增加轻微的阴影边缘 */
+        }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 34px; font-weight: bold; }
+        .btn { color: var(--ios-yellow); background: none; border: none; font-size: 17px; cursor: pointer; padding: 0; }
+        #notes-list { padding: 0 20px; overflow-x: hidden; }
         
-        <div id="notes-list"></div>
+        .note-container { position: relative; margin-bottom: 10px; border-radius: 10px; overflow: hidden; background: var(--delete-red); }
+        
+        .note-item { 
+            background: white; 
+            padding: 12px 16px; 
+            position: relative; 
+            z-index: 2; 
+            transition: transform 0.3s ease; 
+            touch-action: pan-y;
+        }
+        .note-title { font-weight: 500; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .note-item-date { font-size: 13px; color: #8e8e93; margin-top: 4px; }
+        
+        .delete-btn {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 80px;
+            background: var(--delete-red);
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 500;
+            z-index: 1;
+            cursor: pointer;
+        }
+        
+        #editor-view { display: none; position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: white; z-index: 10; flex-direction: column; }
+        .editor-header { display: flex; justify-content: space-between; padding: 16px 20px; }
+        textarea { flex: 1; border: none; padding: 0 20px 20px; font-size: 17px; line-height: 1.5; outline: none; font-family: inherit; resize: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <div>备忘录</div>
+        <button class="btn" onclick="openEditor()">&#10133;</button>
+    </header>
     
-        <div id="editor-view">
-            <div class="editor-header">
-                <button class="btn" onclick="closeEditor()">&#10094; 备忘录</button>
-                <button class="btn" onclick="saveNote()">完成</button>
-            </div>
-            <textarea id="note-content" placeholder="输入内容..."></textarea>
+    <div id="notes-list"></div>
+
+    <div id="editor-view">
+        <div class="editor-header">
+            <button class="btn" onclick="closeEditor()">&#10094; 备忘录</button>
+            <button class="btn" onclick="saveNote()">完成</button>
         </div>
-    
-        <script>
-            let currentNoteId = null;
-            let notesData = [];
-    
-            async function fetchNotes() {
-                try {
-                    const res = await fetch('/api/notes');
-                    if (res.ok) {
-                        notesData = await res.json();
-                    } else {
-                        notesData = [];
-                    }
-                } catch (e) {
-                    console.error("Failed to fetch notes", e);
+        <textarea id="note-content" placeholder="输入内容..."></textarea>
+    </div>
+
+    <script>
+        let currentNoteId = null;
+        let notesData = [];
+
+        async function fetchNotes() {
+            try {
+                const res = await fetch('/api/notes');
+                if (res.ok) {
+                    notesData = await res.json();
+                } else {
                     notesData = [];
                 }
-                renderNotes();
+            } catch (e) {
+                console.error("无法获取备忘录数据", e);
+                notesData = [];
             }
+            renderNotes();
+        }
 
-            function renderNotes() {
-                const list = document.getElementById('notes-list');
-                list.innerHTML = notesData.map(n => `
-                    <div class="note-container" id="container-${n.id}">
-                        <div class="delete-btn" onclick="deleteNote(${n.id}, event)">删除</div>
-                        <div class="note-item" id="item-${n.id}" onclick="openEditor(${n.id})" 
-                             ontouchstart="handleTouchStart(event, ${n.id})" 
-                             ontouchmove="handleTouchMove(event, ${n.id})" 
-                             ontouchend="handleTouchEnd(event, ${n.id})">
-                            <div class="note-title">${n.content.split('\n')[0] || '新备忘录'}</div>
-                            <div class="note-item-date">${new Date(n.created_at).toLocaleDateString()}</div>
-                        </div>
+        function renderNotes() {
+            const list = document.getElementById('notes-list');
+            list.innerHTML = notesData.map(n => `
+                <div class="note-container" id="container-${n.id}">
+                    <div class="delete-btn" onclick="deleteNote(${n.id}, event)">删除</div>
+                    <div class="note-item" id="item-${n.id}" onclick="openEditor(${n.id})" 
+                         ontouchstart="handleTouchStart(event, ${n.id})" 
+                         ontouchmove="handleTouchMove(event, ${n.id})" 
+                         ontouchend="handleTouchEnd(event, ${n.id})">
+                        <div class="note-title">${n.content ? n.content.split('\n')[0] : '新备忘录'}</div>
+                        <div class="note-item-date">${new Date(n.created_at).toLocaleDateString()}</div>
                     </div>
-                `).join('');
+                </div>
+            `).join('');
+        }
+
+        function openEditor(id = null) {
+            currentNoteId = id;
+            const note = notesData.find(n => n.id === id);
+            document.getElementById('note-content').value = note ? note.content : '';
+            document.getElementById('editor-view').style.display = 'flex';
+        }
+
+        function closeEditor() {
+            document.getElementById('editor-view').style.display = 'none';
+        }
+
+        async function saveNote() {
+            const content = document.getElementById('note-content').value;
+            if (!content.trim()) return closeEditor();
+            
+            const method = currentNoteId ? 'PUT' : 'POST';
+            const body = JSON.stringify({ id: currentNoteId, content });
+            
+            try {
+                await fetch('/api/notes', { method, headers: { 'Content-Type': 'application/json' }, body });
+            } catch(e) {
+                console.error("保存失败", e);
             }
-    
-            function openEditor(id = null) {
-                currentNoteId = id;
-                const note = notesData.find(n => n.id === id);
-                document.getElementById('note-content').value = note ? note.content : '';
-                document.getElementById('editor-view').style.display = 'flex';
-            }
-    
-            function closeEditor() {
-                document.getElementById('editor-view').style.display = 'none';
-            }
-    
-            async function saveNote() {
-                const content = document.getElementById('note-content').value;
-                if (!content.trim()) return closeEditor();
-                
-                const method = currentNoteId ? 'PUT' : 'POST';
-                const body = JSON.stringify({ id: currentNoteId, content });
-                
-                try {
-                    await fetch('/api/notes', { method, headers: { 'Content-Type': 'application/json' }, body });
-                } catch(e) {
-                    console.error("Save failed", e);
-                }
-                
-                closeEditor();
-                fetchNotes();
-            }
-
-            async function deleteNote(id, event) {
-                event.stopPropagation(); // 阻止点击事件冒泡到打开编辑器
-                
-                // 简单的动画效果
-                const container = document.getElementById(\`container-\${id}\`);
-                container.style.opacity = '0';
-                container.style.transition = 'opacity 0.2s';
-                
-                setTimeout(async () => {
-                    try {
-                        await fetch('/api/notes', { 
-                            method: 'DELETE', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ id }) 
-                        });
-                        fetchNotes();
-                    } catch(e) {
-                        console.error("Delete failed", e);
-                        fetchNotes(); // 失败后重新拉取
-                    }
-                }, 200);
-            }
-
-            // 滑动删除逻辑
-            let startX = 0;
-            let currentX = 0;
-            let currentOpenId = null;
-
-            function handleTouchStart(e, id) {
-                startX = e.touches[0].clientX;
-                
-                // 如果有其他打开的滑块，先复位它
-                if (currentOpenId !== null && currentOpenId !== id) {
-                    resetItem(currentOpenId);
-                }
-            }
-
-            function handleTouchMove(e, id) {
-                const item = document.getElementById(\`item-\${id}\`);
-                currentX = e.touches[0].clientX;
-                const diff = currentX - startX;
-
-                // 只允许向左滑，最多滑出 80px (删除按钮宽度)
-                if (diff < 0) {
-                    // 如果原本是关闭状态
-                    if (currentOpenId !== id) {
-                       const move = Math.max(diff, -80);
-                       item.style.transform = \`translateX(\${move}px)\`;
-                       item.style.transition = 'none'; 
-                    }
-                } else if (diff > 0 && currentOpenId === id) {
-                    // 如果已经是打开状态，允许向右滑回去
-                    const move = Math.min(-80 + diff, 0);
-                    item.style.transform = \`translateX(\${move}px)\`;
-                    item.style.transition = 'none';
-                }
-            }
-
-            function handleTouchEnd(e, id) {
-                const item = document.getElementById(\`item-\${id}\`);
-                const diff = currentX - startX;
-
-                item.style.transition = 'transform 0.3s ease';
-
-                // 判断是否超过阈值
-                if (currentOpenId !== id && diff < -40) {
-                    // 打开删除按钮
-                    item.style.transform = \`translateX(-80px)\`;
-                    currentOpenId = id;
-                } else if (currentOpenId === id && diff > 40) {
-                    // 关闭删除按钮
-                    resetItem(id);
-                } else {
-                    // 弹回原状态
-                    if (currentOpenId === id) {
-                        item.style.transform = \`translateX(-80px)\`;
-                    } else {
-                        resetItem(id);
-                    }
-                }
-            }
-
-            function resetItem(id) {
-                const item = document.getElementById(\`item-\${id}\`);
-                if(item) {
-                    item.style.transform = \`translateX(0px)\`;
-                }
-                if (currentOpenId === id) currentOpenId = null;
-            }
-
+            
+            closeEditor();
             fetchNotes();
-        </script>
-    </body>
-    </html>
-    
+        }
+
+        async function deleteNote(id, event) {
+            event.stopPropagation(); 
+            
+            const container = document.getElementById(`container-${id}`);
+            container.style.opacity = '0';
+            container.style.transition = 'opacity 0.2s';
+            
+            setTimeout(async () => {
+                try {
+                    await fetch('/api/notes', { 
+                        method: 'DELETE', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ id }) 
+                    });
+                    fetchNotes();
+                } catch(e) {
+                    console.error("删除失败", e);
+                    fetchNotes();
+                }
+            }, 200);
+        }
+
+        // 滑动删除逻辑
+        let startX = 0;
+        let currentX = 0;
+        let currentOpenId = null;
+
+        function handleTouchStart(e, id) {
+            startX = e.touches[0].clientX;
+            if (currentOpenId !== null && currentOpenId !== id) {
+                resetItem(currentOpenId);
+            }
+        }
+
+        function handleTouchMove(e, id) {
+            const item = document.getElementById(`item-${id}`);
+            currentX = e.touches[0].clientX;
+            const diff = currentX - startX;
+            
+            if (diff < 0) {
+                if (currentOpenId !== id) {
+                   const move = Math.max(diff, -80);
+                   item.style.transform = `translateX(${move}px)`;
+                   item.style.transition = 'none'; 
+                }
+            } else if (diff > 0 && currentOpenId === id) {
+                const move = Math.min(-80 + diff, 0);
+                item.style.transform = `translateX(${move}px)`;
+                item.style.transition = 'none';
+            }
+        }
+
+        function handleTouchEnd(e, id) {
+            const item = document.getElementById(`item-${id}`);
+            const diff = currentX - startX;
+            item.style.transition = 'transform 0.3s ease';
+            
+            if (currentOpenId !== id && diff < -40) {
+                item.style.transform = `translateX(-80px)`;
+                currentOpenId = id;
+            } else if (currentOpenId === id && diff > 40) {
+                resetItem(id);
+            } else {
+                if (currentOpenId === id) {
+                    item.style.transform = `translateX(-80px)`;
+                } else {
+                    resetItem(id);
+                }
+            }
+        }
+
+        function resetItem(id) {
+            const item = document.getElementById(`item-${id}`);
+            if(item) {
+                item.style.transform = `translateX(0px)`;
+            }
+            if (currentOpenId === id) currentOpenId = null;
+        }
+
+        fetchNotes();
+    </script>
+</body>
+</html>
