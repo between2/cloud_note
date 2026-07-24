@@ -206,51 +206,61 @@
         }
 
         async function uploadImageToBed(input) {
-            const file = input.files[0];
-            if (!file) return;
+    const file = input.files[0];
+    if (!file) return;
 
-            const btn = document.getElementById('img-upload-btn');
-            const originalText = btn.innerHTML;
-            btn.innerText = "⏳ 上传中...";
-            btn.disabled = true;
+    // ⚠️ 请确保这里的域名是你图床的真实访问域名（去掉末尾斜杠）
+    const IMG_BED_DOMAIN = "https://你的图床真实域名.com"; 
 
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('uploadFolder', '/备忘录/');
-            formData.append('uploadChannel', 'huggingface');
-            formData.append('channelName', '浮尘');
-            formData.append('uploadNameType', 'original');
+    const btn = document.getElementById('img-upload-btn');
+    const originalText = btn.innerHTML;
+    btn.innerText = "⏳ 上传中...";
+    btn.disabled = true;
 
-            try {
-                const uploadUrl = `${IMG_BED_DOMAIN}/upload?uploadChannel=huggingface&uploadFolder=${encodeURIComponent('/备忘录/')}`;
-                const res = await fetch(uploadUrl, {
-                    method: 'POST',
-                    body: formData
-                });
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('uploadFolder', '/备忘录/');
+    formData.append('uploadChannel', 'huggingface');
+    formData.append('channelName', '浮尘');
+    formData.append('uploadNameType', 'original');
 
-                const data = await res.json();
-                
-                let imageUrl = '';
-                if (typeof data === 'string') imageUrl = data;
-                else if (data.url) imageUrl = data.url;
-                else if (data.src) imageUrl = data.src;
-                else if (Array.isArray(data) && data[0]) imageUrl = data[0].src || data[0].url || data[0];
-                else if (data.data && data.data.url) imageUrl = data.data.url;
+    try {
+        const uploadUrl = `${IMG_BED_DOMAIN}/upload?uploadChannel=huggingface&uploadFolder=${encodeURIComponent('/备忘录/')}`;
+        const res = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData
+        });
 
-                if (imageUrl) {
-                    insertImageToEditor(imageUrl);
-                } else {
-                    alert('上传成功但未获取到链接，请查看图床返回数据');
-                }
-            } catch (err) {
-                console.error('上传图片失败:', err);
-                alert('图片上传失败，请检查图床域名或网络');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                input.value = '';
+        const data = await res.json();
+        console.log("图床返回数据:", data); // 方便在控制台查看返回内容
+        
+        let imageUrl = '';
+        if (typeof data === 'string') imageUrl = data;
+        else if (data.url) imageUrl = data.url;
+        else if (data.src) imageUrl = data.src;
+        else if (Array.isArray(data) && data[0]) imageUrl = data[0].src || data[0].url || data[0];
+        else if (data.data && data.data.url) imageUrl = data.data.url;
+
+        if (imageUrl) {
+            // 💡 关键修正：如果返回的是相对路径（如 /file/xxx.png），自动拼接图床完整域名
+            if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+                const baseUrl = IMG_BED_DOMAIN.replace(/\/+$/, '');
+                const path = imageUrl.replace(/^\/+/, '');
+                imageUrl = `${baseUrl}/${path}`;
             }
+            insertImageToEditor(imageUrl);
+        } else {
+            alert('上传成功但未解析出链接，请打开浏览器 F12 控制台查看返回结果');
         }
+    } catch (err) {
+        console.error('上传图片失败:', err);
+        alert('图片上传失败，请检查图床域名或跨域(CORS)设置');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        input.value = '';
+    }
+}
 
         function insertImageToEditor(url) {
             const editor = document.getElementById('note-content-editor');
