@@ -8,6 +8,9 @@
 </head>
 <body>
 
+    <!-- Toast 消息提示组件 -->
+    <div id="toast-message" class="toast-toast">修改成功</div>
+
     <!-- 1. 笔记主页 TAB -->
     <div id="tab-notes" class="tab-view active">
         <header>
@@ -131,7 +134,7 @@
         <div id="trash-list" style="padding: 0 20px 20px;"></div>
     </div>
 
-    <!-- 5. 加锁笔记显示设置 弹窗 -->
+    <!-- 5. 加锁笔记显示设置 弹窗 (图3功能修复) -->
     <div id="lock-modal-overlay" class="modal-overlay" onclick="closeLockModal()"></div>
     <div id="lock-modal-card" class="lock-modal-card">
         <div class="lock-modal-title">加锁笔记显示设置</div>
@@ -172,7 +175,7 @@
         <div class="auth-switch" id="auth-switch-btn" onclick="toggleAuthMode()">没有账号？立即注册</div>
     </div>
 
-    <!-- 6. 编辑器视图 (图2样式还原) -->
+    <!-- 6. 编辑器视图 (对标图2布局) -->
     <div id="editor-view" class="sub-view">
         <div class="sub-header" style="border-bottom: 0.5px solid #e5e5ea;">
             <button class="btn" onclick="saveNote()">&#10094;</button>
@@ -183,12 +186,23 @@
             </div>
         </div>
         
+        <!-- 标题输入框 -->
         <input type="text" id="note-title-input" class="title-input" placeholder="标题">
+        
+        <!-- 图2标准信息栏: 日期 | 字数 | 分类 -->
+        <div class="editor-meta-bar">
+            <span id="editor-datetime-tag">2026/7/14 18:55</span>
+            <span class="editor-meta-divider">|</span>
+            <span id="editor-wordcount-tag">0字</span>
+            <span class="editor-meta-divider">|</span>
+            <span id="editor-folder-select-tag" class="editor-folder-dropdown" onclick="selectFolderForCurrentNote()">未分类 ⌵</span>
+        </div>
+
+        <!-- 文本编辑器区域 -->
         <div id="note-content-editor" class="editor-content" contenteditable="true" placeholder="开始输入内容..." oninput="onEditorInput()"></div>
 
-        <!-- 图2风格：展开排版面板 -->
+        <!-- 展开的 Aa 排版面板 -->
         <div id="editor-format-panel" class="format-panel">
-            <!-- 基础样式按钮 -->
             <div class="format-row style-btns-row">
                 <button class="fmt-btn" onclick="formatDoc('bold')"><b>B</b></button>
                 <button class="fmt-btn" onclick="formatDoc('italic')"><i>I</i></button>
@@ -197,7 +211,6 @@
                 <button class="fmt-btn" onclick="toggleHighlight()">🖌️</button>
             </div>
 
-            <!-- 字号选择器 -->
             <div class="format-section">
                 <div class="format-label">字号</div>
                 <div class="size-selector-row">
@@ -212,7 +225,6 @@
                 </div>
             </div>
 
-            <!-- 颜色选择器 -->
             <div class="format-section">
                 <div class="format-label">字体颜色</div>
                 <div class="color-palette-row">
@@ -229,17 +241,13 @@
             </div>
         </div>
 
-        <!-- 底部固定工具栏（图2图标栏） -->
+        <!-- 精简后的底部悬浮工具栏 (包含精确保留的工具: Aa, 列表≡, ☑, 🖼) -->
         <div class="editor-bottom-bar">
-            <button class="bottom-tool-btn" onclick="alert('AI 辅助已就绪')"><span class="ai-badge">AI</span></button>
-            <button class="bottom-tool-btn">🔲</button>
-            <button class="bottom-tool-btn active" id="btn-toggle-aa" onclick="toggleAaPanel()">Aa</button>
+            <button class="bottom-tool-btn" id="btn-toggle-aa" onclick="toggleAaPanel()">Aa</button>
             <button class="bottom-tool-btn" onclick="formatDoc('insertUnorderedList')">≡</button>
             <button class="bottom-tool-btn" onclick="insertChecklist()">☑</button>
             <button class="bottom-tool-btn" id="img-upload-btn" onclick="triggerNoteImageSelect()">🖼</button>
             <input type="file" id="note-image-file-input" accept="image/*" style="display:none;" onchange="uploadNoteImage(this)">
-            <button class="bottom-tool-btn" onclick="toggleFolderSelect()">⊕</button>
-            <div class="word-count-badge" id="editor-word-count-tag"></div>
         </div>
     </div>
 
