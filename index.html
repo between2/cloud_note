@@ -96,7 +96,7 @@
         .menu-item { padding: 14px 18px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(0,0,0,0.1); cursor: pointer; }
         .menu-item.danger { color: var(--delete-red); }
 
-        /* 编辑器界面（带 iOS 原生进出动画） */
+        /* 编辑器界面 */
         #editor-view { 
             position: fixed; 
             inset: 0; 
@@ -157,7 +157,8 @@
     <!-- 编辑器视图 -->
     <div id="editor-view">
         <div class="editor-header">
-            <button class="btn" onclick="closeEditor()">&#10094; 备忘录</button>
+            <!-- 关键修改：点击左上角返回时自动触发 saveNote() 保存数据 -->
+            <button class="btn" onclick="saveNote()">&#10094; 备忘录</button>
             <button class="btn" onclick="saveNote()" style="font-weight: bold;">完成</button>
         </div>
         
@@ -185,7 +186,6 @@
     </div>
 
     <script>
-        // 图床完整域名（已为你配置好）
         const IMG_BED_DOMAIN = "https://wp.fuchen.indevs.in";
 
         let currentNoteId = null;
@@ -257,7 +257,6 @@
                 else if (data.data && data.data.url) imageUrl = data.data.url;
 
                 if (imageUrl) {
-                    // 拼接完整网络路径，解决相对路径导致的裂图问题
                     if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
                         const baseUrl = IMG_BED_DOMAIN.replace(/\/+$/, '');
                         const path = imageUrl.replace(/^\/+/, '');
@@ -415,7 +414,6 @@
         }
 
         function clickNote(id) {
-            // 如果其他卡片处于侧滑打开状态，点击时仅重置卡片，不打开笔记
             if (currentOpenId !== null) {
                 resetItem(currentOpenId);
                 return;
@@ -475,14 +473,14 @@
             }
         }
 
-        /* 修复后的长按与侧滑逻辑 */
+        /* 长按与侧滑逻辑 */
         let startX = 0, startY = 0, currentX = 0, currentOpenId = null;
         let longPressTimer = null, isLongPressed = false;
 
         function handleTouchStart(e, id) {
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
-            currentX = startX; // 关键修复：初始化 currentX，避免未移动时产生错误滑动计算
+            currentX = startX;
             isLongPressed = false;
             const item = document.getElementById(`item-${id}`);
 
@@ -580,7 +578,7 @@
             if (action === 'delete') deleteNote(id, { stopPropagation: () => {} });
         }
 
-        /* 带平滑过渡动画的编辑器切换控制 */
+        /* 编辑器视图控制 */
         function openEditor(id = null) {
             currentNoteId = id;
             const note = notesData.find(n => n.id === id);
@@ -602,12 +600,16 @@
             document.getElementById('editor-view').classList.remove('active');
         }
 
+        /* 保存逻辑（无论空图片还是有内容，自动发起 POST/PUT） */
         async function saveNote() {
             const title = document.getElementById('note-title-input').value.trim();
             const content = document.getElementById('note-content-editor').innerHTML;
             const folder_id = parseInt(document.getElementById('editor-folder-select').value) || 0;
 
-            if (!title && !content) return closeEditor();
+            // 如果标题和正文都完全为空（且包含无文本标签），直接退出不保存
+            if (!title && (!content || content === '<br>')) {
+                return closeEditor();
+            }
 
             const existingNote = notesData.find(n => n.id === currentNoteId);
             const method = currentNoteId ? 'PUT' : 'POST';
@@ -623,7 +625,9 @@
 
             try {
                 await fetch('/api/notes', { method, headers: { 'Content-Type': 'application/json' }, body });
-            } catch(e) { console.error("保存失败", e); }
+            } catch(e) { 
+                console.error("保存失败", e); 
+            }
 
             closeEditor();
             fetchNotes();
