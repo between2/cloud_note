@@ -29,10 +29,12 @@
             -webkit-user-select: none;
         }
 
-        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 28px; font-weight: bold; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 24px; font-weight: bold; }
         .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-right { display: flex; align-items: center; gap: 10px; }
         .menu-btn { font-size: 24px; cursor: pointer; color: var(--ios-yellow); background: none; border: none; padding: 0; }
         .btn { color: var(--ios-yellow); background: none; border: none; font-size: 17px; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; }
+        .user-tag { font-size: 14px; background: rgba(229, 169, 15, 0.15); padding: 4px 10px; border-radius: 12px; color: var(--ios-yellow); font-weight: 500; cursor: pointer; }
         
         .section-title { padding: 12px 20px 6px; font-size: 13px; color: #8e8e93; font-weight: 600; text-transform: uppercase; }
         #notes-list { padding: 0 20px 40px; }
@@ -84,7 +86,7 @@
         .note-badge { font-size: 14px; margin-left: 8px; display: flex; gap: 4px; }
         .note-item-date { font-size: 13px; color: #8e8e93; margin-top: 4px; }
 
-        /* 长按高斯模糊弹窗 */
+        /* 长按菜单 */
         #context-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
         #context-overlay.active { opacity: 1; pointer-events: auto; }
         .context-menu {
@@ -96,27 +98,26 @@
         .menu-item { padding: 14px 18px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(0,0,0,0.1); cursor: pointer; }
         .menu-item.danger { color: var(--delete-red); }
 
+        /* 登录/注册 Modal UI */
+        #auth-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(5px); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+        #auth-modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .auth-card {
+            position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(0.9); width: 300px;
+            background: white; border-radius: 16px; padding: 24px; z-index: 310; opacity: 0; pointer-events: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: all 0.25s ease;
+        }
+        .auth-card.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+        .auth-title { font-size: 20px; font-weight: bold; text-align: center; margin-bottom: 20px; }
+        .auth-input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #e5e5ea; border-radius: 10px; font-size: 15px; outline: none; background: #f9f9f9; }
+        .auth-btn { width: 100%; padding: 12px; background: var(--ios-yellow); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; }
+        .auth-switch { text-align: center; font-size: 13px; color: #8e8e93; margin-top: 14px; cursor: pointer; }
+
         /* 编辑器界面 */
         #editor-view { 
-            position: fixed; 
-            inset: 0; 
-            margin: 0 auto; 
-            max-width: 600px; 
-            background: white; 
-            z-index: 100; 
-            display: flex; 
-            flex-direction: column; 
-            opacity: 0;
-            pointer-events: none;
-            transform: translateX(100%);
-            transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+            position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: white; z-index: 100; display: flex; flex-direction: column; 
+            opacity: 0; pointer-events: none; transform: translateX(100%); transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
         }
-        #editor-view.active {
-            opacity: 1;
-            pointer-events: auto;
-            transform: translateX(0);
-        }
-
+        #editor-view.active { opacity: 1; pointer-events: auto; transform: translateX(0); }
         .editor-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #e5e5ea; }
         .title-input { border: none; outline: none; font-size: 22px; font-weight: bold; padding: 16px 20px 8px; width: calc(100% - 40px); font-family: inherit; }
         .toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 20px; background: #f8f8f8; border-bottom: 1px solid #e5e5ea; flex-wrap: wrap; }
@@ -133,7 +134,10 @@
             <button class="menu-btn" onclick="toggleSidebar(true)">☰</button>
             <div id="page-title">所有笔记</div>
         </div>
-        <button class="btn" onclick="openEditor()">&#10133;</button>
+        <div class="header-right">
+            <div id="user-display" class="user-tag" onclick="handleUserClick()">👤 游客模式 (点击登录)</div>
+            <button class="btn" onclick="openEditor()">&#10133;</button>
+        </div>
     </header>
 
     <!-- 侧边栏抽屉 -->
@@ -154,16 +158,23 @@
         <div class="menu-item danger" onclick="handleMenuAction('delete')"><span>删除</span> 🗑️</div>
     </div>
 
+    <!-- 账号 Auth 弹窗 -->
+    <div id="auth-modal-overlay" onclick="closeAuthModal()"></div>
+    <div id="auth-card" class="auth-card">
+        <div class="auth-title" id="auth-title">账号登录</div>
+        <input type="text" id="auth-username" class="auth-input" placeholder="用户名">
+        <input type="password" id="auth-password" class="auth-input" placeholder="密码">
+        <button class="auth-btn" id="auth-submit-btn" onclick="submitAuth()">登录</button>
+        <div class="auth-switch" id="auth-switch-btn" onclick="toggleAuthMode()">没有账号？立即注册</div>
+    </div>
+
     <!-- 编辑器视图 -->
     <div id="editor-view">
         <div class="editor-header">
-            <!-- 关键修改：点击左上角返回时自动触发 saveNote() 保存数据 -->
             <button class="btn" onclick="saveNote()">&#10094; 备忘录</button>
             <button class="btn" onclick="saveNote()" style="font-weight: bold;">完成</button>
         </div>
-        
         <input type="text" id="note-title-input" class="title-input" placeholder="标题">
-
         <div class="toolbar">
             <button class="tool-btn" onclick="formatDoc('bold')"><b>B</b></button>
             <button class="tool-btn" onclick="formatDoc('italic')"><i>I</i></button>
@@ -175,13 +186,10 @@
                 <option value="7">超大字号</option>
             </select>
             <input type="color" class="color-picker" onchange="formatDoc('foreColor', this.value)">
-            <!-- 图片上传按钮 -->
             <button class="tool-btn" id="img-upload-btn" onclick="triggerImageSelect()">📷 图片</button>
             <input type="file" id="image-file-input" accept="image/*" style="display:none;" onchange="uploadImageToBed(this)">
-            <!-- 文件夹分类 -->
             <select id="editor-folder-select" class="tool-btn"></select>
         </div>
-
         <div id="note-content-editor" class="editor-content" contenteditable="true" placeholder="开始输入内容..."></div>
     </div>
 
@@ -193,36 +201,114 @@
         let foldersData = [];
         let currentFilter = 'all';
         let activeMenuNoteId = null;
+        let isAuthRegisterMode = false;
+
+        function getToken() { return localStorage.getItem('auth_token'); }
+        function isLoggedIn() { return !!getToken(); }
 
         function formatDoc(cmd, value = null) { document.execCommand(cmd, false, value); }
 
         async function initData() {
+            updateUserUI();
             await fetchFolders();
             await fetchNotes();
         }
 
+        function updateUserUI() {
+            const display = document.getElementById('user-display');
+            if (isLoggedIn()) {
+                const uname = localStorage.getItem('auth_username') || '已登录';
+                display.innerText = `👤 ${uname} (退出)`;
+            } else {
+                display.innerText = `👤 游客模式 (点击登录)`;
+            }
+        }
+
+        function handleUserClick() {
+            if (isLoggedIn()) {
+                if (confirm("确定要退出登录吗？")) {
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('auth_username');
+                    initData();
+                }
+            } else {
+                openAuthModal();
+            }
+        }
+
+        /* 网络 API 请求代理助手 */
+        async function apiFetch(url, options = {}) {
+            if (!isLoggedIn()) return null; // 游客模式走本地
+            const token = getToken();
+            options.headers = {
+                ...options.headers,
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+            const res = await fetch(url, options);
+            if (res.status === 401) {
+                alert("登录凭证已过期，请重新登录");
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('auth_username');
+                initData();
+                return null;
+            }
+            return res;
+        }
+
+        /* 文件夹管理 */
         async function fetchFolders() {
-            try {
-                const res = await fetch('/api/folders');
-                if (res.ok) foldersData = await res.json();
+            if (isLoggedIn()) {
+                const res = await apiFetch('/api/folders');
+                if (res && res.ok) foldersData = await res.json();
                 else foldersData = [];
-            } catch (e) { foldersData = []; }
+            } else {
+                foldersData = JSON.parse(localStorage.getItem('guest_folders') || '[]');
+            }
             renderSidebar();
         }
 
+        async function createNewFolder() {
+            const name = prompt("输入新文件夹名称：");
+            if (name && name.trim()) {
+                if (isLoggedIn()) {
+                    await apiFetch('/api/folders', { method: 'POST', body: JSON.stringify({ name: name.trim() }) });
+                } else {
+                    foldersData.push({ id: Date.now(), name: name.trim() });
+                    localStorage.setItem('guest_folders', JSON.stringify(foldersData));
+                }
+                fetchFolders();
+            }
+        }
+
+        async function deleteFolder(id, event) {
+            event.stopPropagation();
+            if (confirm("确定删除该文件夹？（里面的笔记不会丢失，会移至未分类）")) {
+                if (isLoggedIn()) {
+                    await apiFetch('/api/folders', { method: 'DELETE', body: JSON.stringify({ id }) });
+                } else {
+                    foldersData = foldersData.filter(f => f.id !== id);
+                    localStorage.setItem('guest_folders', JSON.stringify(foldersData));
+                }
+                if (currentFilter === id) selectFilter('all', '所有笔记');
+                else fetchFolders();
+            }
+        }
+
+        /* 笔记获取与渲染 */
         async function fetchNotes() {
-            try {
-                const res = await fetch('/api/notes');
-                if (res.ok) notesData = await res.json();
+            if (isLoggedIn()) {
+                const res = await apiFetch('/api/notes');
+                if (res && res.ok) notesData = await res.json();
                 else notesData = [];
-            } catch (e) { notesData = []; }
+            } else {
+                notesData = JSON.parse(localStorage.getItem('guest_notes') || '[]');
+            }
             renderNotes();
         }
 
-        /* 图床图片上传逻辑 */
-        function triggerImageSelect() {
-            document.getElementById('image-file-input').click();
-        }
+        /* 图床图片上传 */
+        function triggerImageSelect() { document.getElementById('image-file-input').click(); }
 
         async function uploadImageToBed(input) {
             const file = input.files[0];
@@ -242,11 +328,7 @@
 
             try {
                 const uploadUrl = `${IMG_BED_DOMAIN}/upload?uploadChannel=huggingface&uploadFolder=${encodeURIComponent('/备忘录/')}`;
-                const res = await fetch(uploadUrl, {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const res = await fetch(uploadUrl, { method: 'POST', body: formData });
                 const data = await res.json();
                 
                 let imageUrl = '';
@@ -263,12 +345,9 @@
                         imageUrl = `${baseUrl}/${path}`;
                     }
                     insertImageToEditor(imageUrl);
-                } else {
-                    alert('上传成功但未解析出图片链接');
-                }
+                } else alert('上传成功但未解析出图片链接');
             } catch (err) {
-                console.error('上传图片失败:', err);
-                alert('图片上传失败，请检查图床域名或跨域设置');
+                alert('图片上传失败，请检查网络或 CORS 设置');
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -283,7 +362,63 @@
             document.execCommand('insertHTML', false, imgHtml);
         }
 
-        /* 侧边栏与过滤逻辑 */
+        /* Auth Modal 控制 */
+        function openAuthModal() {
+            isAuthRegisterMode = false;
+            document.getElementById('auth-title').innerText = "账号登录";
+            document.getElementById('auth-submit-btn').innerText = "登录";
+            document.getElementById('auth-switch-btn').innerText = "没有账号？立即注册";
+            document.getElementById('auth-username').value = "";
+            document.getElementById('auth-password').value = "";
+            document.getElementById('auth-modal-overlay').classList.add('active');
+            document.getElementById('auth-card').classList.add('active');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal-overlay').classList.remove('active');
+            document.getElementById('auth-card').classList.remove('active');
+        }
+
+        function toggleAuthMode() {
+            isAuthRegisterMode = !isAuthRegisterMode;
+            document.getElementById('auth-title').innerText = isAuthRegisterMode ? "账号注册" : "账号登录";
+            document.getElementById('auth-submit-btn').innerText = isAuthRegisterMode ? "注册并开启云同步" : "登录";
+            document.getElementById('auth-switch-btn').innerText = isAuthRegisterMode ? "已有账号？直接登录" : "没有账号？立即注册";
+        }
+
+        async function submitAuth() {
+            const username = document.getElementById('auth-username').value.trim();
+            const password = document.getElementById('auth-password').value.trim();
+            if (!username || !password) return alert("请填写用户名和密码");
+
+            const guestNotes = JSON.parse(localStorage.getItem('guest_notes') || '[]');
+            const endpoint = isAuthRegisterMode ? '/api/register' : '/api/login';
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, guestNotes })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.token) {
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('auth_username', data.username);
+                    localStorage.removeItem('guest_notes'); // 清空本地游客缓存
+
+                    alert(guestNotes.length > 0 ? "登录成功！本地游客笔记已成功合并至你的云端账号！" : "登录成功！");
+                    closeAuthModal();
+                    initData();
+                } else {
+                    alert(data.error || "操作失败");
+                }
+            } catch (e) {
+                alert("请求失败，请稍后重试");
+            }
+        }
+
+        /* 侧边栏及渲染逻辑 */
         function toggleSidebar(open) {
             document.getElementById('sidebar-overlay').classList.toggle('active', open);
             document.getElementById('sidebar').classList.toggle('active', open);
@@ -322,31 +457,6 @@
             renderSidebar();
             renderNotes();
             toggleSidebar(false);
-        }
-
-        async function createNewFolder() {
-            const name = prompt("输入新文件夹名称：");
-            if (name && name.trim()) {
-                await fetch('/api/folders', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name.trim() })
-                });
-                fetchFolders();
-            }
-        }
-
-        async function deleteFolder(id, event) {
-            event.stopPropagation();
-            if (confirm("确定删除该文件夹？（里面的笔记不会丢失，会移至未分类）")) {
-                await fetch('/api/folders', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id })
-                });
-                if (currentFilter === id) selectFilter('all', '所有笔记');
-                else fetchFolders();
-            }
         }
 
         function getFilteredNotes() {
@@ -401,7 +511,7 @@
                                 ${isLocked ? '🔒' : ''}
                             </div>
                         </div>
-                        <div class="note-item-date">${new Date(n.created_at).toLocaleDateString()}</div>
+                        <div class="note-item-date">${new Date(n.created_at || Date.now()).toLocaleDateString()}</div>
                     </div>
                 </div>
             `;
@@ -414,66 +524,111 @@
         }
 
         function clickNote(id) {
-            if (currentOpenId !== null) {
-                resetItem(currentOpenId);
-                return;
-            }
-
+            if (currentOpenId !== null) return resetItem(currentOpenId);
             const note = notesData.find(n => n.id === id);
             if (!note) return;
 
             if (note.password) {
                 const input = prompt("该备忘录已加密，请输入密码：");
-                if (input !== note.password) {
-                    alert("密码错误！");
-                    return;
-                }
+                if (input !== note.password) return alert("密码错误！");
             }
             openEditor(id);
         }
 
-        async function updateNoteApi(note) {
-            try {
-                await fetch('/api/notes', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(note)
+        async function saveNote() {
+            const title = document.getElementById('note-title-input').value.trim();
+            const content = document.getElementById('note-content-editor').innerHTML;
+            const folder_id = parseInt(document.getElementById('editor-folder-select').value) || 0;
+
+            if (!title && (!content || content === '<br>')) return closeEditor();
+
+            const existingNote = notesData.find(n => n.id === currentNoteId);
+
+            if (isLoggedIn()) {
+                const method = currentNoteId ? 'PUT' : 'POST';
+                const body = JSON.stringify({ 
+                    id: currentNoteId, title, content, 
+                    is_pinned: existingNote ? existingNote.is_pinned : 0, 
+                    password: existingNote ? existingNote.password : '', folder_id 
                 });
-                fetchNotes();
-            } catch (e) { console.error("更新失败", e); }
+                await apiFetch('/api/notes', { method, body });
+            } else {
+                if (currentNoteId) {
+                    const idx = notesData.findIndex(n => n.id === currentNoteId);
+                    if (idx !== -1) {
+                        notesData[idx] = { ...notesData[idx], title, content, folder_id };
+                    }
+                } else {
+                    notesData.push({
+                        id: Date.now(), title, content, is_pinned: 0, password: '', folder_id, created_at: new Date().toISOString()
+                    });
+                }
+                localStorage.setItem('guest_notes', JSON.stringify(notesData));
+            }
+
+            closeEditor();
+            fetchNotes();
         }
 
-        function quickPin(id, event) {
-            event.stopPropagation();
+        async function quickPin(id, event) {
+            if (event && event.stopPropagation) event.stopPropagation();
             resetItem(id);
             const note = notesData.find(n => n.id === id);
-            if (note) {
-                note.is_pinned = note.is_pinned ? 0 : 1;
-                updateNoteApi(note);
+            if (!note) return;
+
+            note.is_pinned = note.is_pinned ? 0 : 1;
+            if (isLoggedIn()) {
+                await apiFetch('/api/notes', { method: 'PUT', body: JSON.stringify(note) });
+            } else {
+                localStorage.setItem('guest_notes', JSON.stringify(notesData));
             }
+            fetchNotes();
         }
 
-        function quickLock(id, event) {
-            event.stopPropagation();
+        async function quickLock(id, event) {
+            if (event && event.stopPropagation) event.stopPropagation();
             resetItem(id);
             const note = notesData.find(n => n.id === id);
             if (!note) return;
 
             if (note.password) {
-                if (confirm("是否移除密码？")) {
-                    note.password = '';
-                    updateNoteApi(note);
-                }
+                if (confirm("是否移除密码？")) note.password = '';
             } else {
                 const pwd = prompt("设置加密密码：");
-                if (pwd !== null && pwd.trim() !== '') {
-                    note.password = pwd.trim();
-                    updateNoteApi(note);
-                }
+                if (pwd !== null && pwd.trim() !== '') note.password = pwd.trim();
             }
+
+            if (isLoggedIn()) {
+                await apiFetch('/api/notes', { method: 'PUT', body: JSON.stringify(note) });
+            } else {
+                localStorage.setItem('guest_notes', JSON.stringify(notesData));
+            }
+            fetchNotes();
         }
 
-        /* 长按与侧滑逻辑 */
+        async function deleteNote(id, event) {
+            if (event && event.stopPropagation) event.stopPropagation();
+            closeContextMenu();
+
+            const container = document.getElementById(`container-${id}`);
+            if (container) {
+                container.style.opacity = '0';
+                container.style.transform = 'scale(0.9)';
+                container.style.transition = 'opacity 0.2s, transform 0.2s';
+            }
+
+            setTimeout(async () => {
+                if (isLoggedIn()) {
+                    await apiFetch('/api/notes', { method: 'DELETE', body: JSON.stringify({ id }) });
+                } else {
+                    notesData = notesData.filter(n => n.id !== id);
+                    localStorage.setItem('guest_notes', JSON.stringify(notesData));
+                }
+                fetchNotes();
+            }, 200);
+        }
+
+        /* 触摸滑动与长按逻辑 */
         let startX = 0, startY = 0, currentX = 0, currentOpenId = null;
         let longPressTimer = null, isLongPressed = false;
 
@@ -511,13 +666,11 @@
 
             if (diffX < 0) {
                 if (currentOpenId !== id) {
-                    const move = Math.max(diffX, -210);
-                    item.style.transform = `translateX(${move}px)`;
+                    item.style.transform = `translateX(${Math.max(diffX, -210)}px)`;
                     item.style.transition = 'none';
                 }
             } else if (diffX > 0 && currentOpenId === id) {
-                const move = Math.min(-210 + diffX, 0);
-                item.style.transform = `translateX(${move}px)`;
+                item.style.transform = `translateX(${Math.min(-210 + diffX, 0)}px)`;
                 item.style.transition = 'none';
             }
         }
@@ -578,7 +731,6 @@
             if (action === 'delete') deleteNote(id, { stopPropagation: () => {} });
         }
 
-        /* 编辑器视图控制 */
         function openEditor(id = null) {
             currentNoteId = id;
             const note = notesData.find(n => n.id === id);
@@ -598,62 +750,6 @@
 
         function closeEditor() {
             document.getElementById('editor-view').classList.remove('active');
-        }
-
-        /* 保存逻辑（无论空图片还是有内容，自动发起 POST/PUT） */
-        async function saveNote() {
-            const title = document.getElementById('note-title-input').value.trim();
-            const content = document.getElementById('note-content-editor').innerHTML;
-            const folder_id = parseInt(document.getElementById('editor-folder-select').value) || 0;
-
-            // 如果标题和正文都完全为空（且包含无文本标签），直接退出不保存
-            if (!title && (!content || content === '<br>')) {
-                return closeEditor();
-            }
-
-            const existingNote = notesData.find(n => n.id === currentNoteId);
-            const method = currentNoteId ? 'PUT' : 'POST';
-
-            const body = JSON.stringify({ 
-                id: currentNoteId, 
-                title, 
-                content, 
-                is_pinned: existingNote ? existingNote.is_pinned : 0, 
-                password: existingNote ? existingNote.password : '',
-                folder_id
-            });
-
-            try {
-                await fetch('/api/notes', { method, headers: { 'Content-Type': 'application/json' }, body });
-            } catch(e) { 
-                console.error("保存失败", e); 
-            }
-
-            closeEditor();
-            fetchNotes();
-        }
-
-        async function deleteNote(id, event) {
-            if (event && event.stopPropagation) event.stopPropagation();
-            closeContextMenu();
-
-            const container = document.getElementById(`container-${id}`);
-            if (container) {
-                container.style.opacity = '0';
-                container.style.transform = 'scale(0.9)';
-                container.style.transition = 'opacity 0.2s, transform 0.2s';
-            }
-
-            setTimeout(async () => {
-                try {
-                    await fetch('/api/notes', { 
-                        method: 'DELETE', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ id }) 
-                    });
-                    fetchNotes();
-                } catch(e) { fetchNotes(); }
-            }, 200);
         }
 
         initData();
