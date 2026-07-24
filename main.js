@@ -1,444 +1,585 @@
-// main.js - 备忘录核心逻辑
+const IMG_BED_DOMAIN = "https://wp.fuchen.indevs.in";
 
-let notes = JSON.parse(localStorage.getItem('memo_notes')) || [
-    { id: 1, title: '欢迎使用备忘录', content: '这是一个仿iOS风格的备忘录应用，支持富文本、分组、加锁、最近删除等功能。', folder: '默认文件夹', time: new Date().toLocaleString(), pinned: false, locked: false, deleted: false }
-];
-let trash = JSON.parse(localStorage.getItem('memo_trash')) || [];
-let folders = JSON.parse(localStorage.getItem('memo_folders')) || ['默认文件夹', '工作笔记', '生活随笔'];
-let currentFolder = '默认文件夹';
-let currentViewTab = 'notes';
-let editingNoteId = null;
-let settings = JSON.parse(localStorage.getItem('memo_settings')) || {
-    wordCount: true,
-    fontSize: 16,
-    lockDisplayMode: 'all'
-};
-let currentUser = JSON.parse(localStorage.getItem('memo_user')) || null;
-let authMode = 'login'; // 'login' or 'register'
+let currentNoteId = null;
+let notesData = [];
+let trashNotesData = [];
+let foldersData = [];
+let currentFilter = 'all';
+let activeMenuNoteId = null;
+let isAuthRegisterMode = false;
+let userProfile = { nickname: '点击设置昵称', avatar_url: 'https://via.placeholder.com/100', username: '游客模式' };
+let lockDisplayMode = 'all';
 
-// 初始化
-window.onload = function() {
-    initSettings();
-    renderSidebarFolders();
-    renderNotesList();
-    updateMineStats();
-    updateTrashCount();
-    initAuthUI();
-};
+function getToken() { return localStorage.getItem('auth_token'); }
+function isLoggedIn() { return !!getToken(); }
+function formatDoc(cmd, value = null) { document.execCommand(cmd, false, value); }
 
-// 标签页切换
+// 初始化入口
+async function initData() {
+    initAppFirstRun();
+    loadSavedSettings();
+    loadProfileLocally(); // 优先锁死本地用户昵称与头像
+    await fetchUserProfile();
+    await fetchFolders();
+    await fetchTrashNotes();
+    await fetchNotes();
+}
+
+function initAppFirstRun() {
+    if (!localStorage.getItem('app_first_run_time')) {
+        localStorage.setItem('app_first_run_time', Date.now().toString());
+    }
+}
+
+function calculateDaysInUse() {
+    const firstTime = parseInt(localStorage.getItem('app_first_run_time') || Date.now());
+    const diffMs = Date.now() - firstTime;
+    return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1);
+}
+
+function getPlainTextLength(htmlContent) {
+    if (!htmlContent) return 0;
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    return (tempDiv.textContent || tempDiv.innerText || '').replace(/\s+/g, '').length;
+}
+
 function switchTab(tab) {
-    currentViewTab = tab;
     document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.bottom-nav .nav-item').forEach(el => el.classList.remove('active'));
-    
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
     if (tab === 'notes') {
         document.getElementById('tab-notes').classList.add('active');
         document.getElementById('nav-notes').classList.add('active');
-        renderNotesList();
     } else if (tab === 'mine') {
         document.getElementById('tab-mine').classList.add('active');
         document.getElementById('nav-mine').classList.add('active');
-        updateMineStats();
+        renderProfileUI();
     }
 }
 
-// 侧边栏控制
-function toggleSidebar(open) {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    if (open) {
-        sidebar.classList.add('open');
-        overlay.classList.add('open');
-    } else {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('open');
+async function apiFetch(url, options = {}) {
+    if (!isLoggedIn()) return null;
+    options.headers = {
+        ...options.headers,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+    };
+    try {
+        const res = await fetch(url, options);
+        if (res.status === 401) {
+            localStorage.removeItem('auth_token');
+            initData();
+            return null;
+        }
+        return res;
+    } catch(e) {
+        return null;
     }
 }
 
-// 渲染侧边栏文件夹
-function renderSidebarFolders() {
-    const menuList = document.getElementById('sidebar-menu-list');
-    let html = `
-        <div class="sidebar-menu-item ${currentFolder === '所有笔记' ? 'active' : ''}" onclick="selectFolder('所有笔记')">所有笔记</div>
-        <div class="sidebar-menu-item ${currentFolder === '已加锁' ? 'active' : ''}" onclick="selectFolder('已加锁')">🔒 已加锁</div>
-    `;
-    folders.forEach(f => {
-        html += `<div class="sidebar-menu-item ${currentFolder === f ? 'active' : ''}" onclick="selectFolder('${f}')">📁 ${f}</div>`;
+/* 用户个人信息 (防止刷新重置的持久化修复) */
+function loadProfileLocally() {
+    const saved = localStorage.getItem('memo_local_user_profile');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            userProfile.nickname = parsed.nickname || '点击设置昵称';
+            userProfile.avatar_url = parsed.avatar_url || 'https://via.placeholder.com/100';
+            userProfile.username = parsed.username || (isLoggedIn() ? localStorage.getItem('auth_username') : '游客模式');
+        } catch(e) {}
+    }
+}
+
+function saveProfileLocally() {
+    localStorage.setItem('memo_local_user_profile', JSON.stringify(userProfile));
+}
+
+async function fetchUserProfile() {
+    if (isLoggedIn()) {
+        const res = await apiFetch('/api/user/profile');
+        if (res && res.ok) {
+            const remoteData = await res.json();
+            if (remoteData.nickname) userProfile.nickname = remoteData.nickname;
+            if (remoteData.avatar_url) userProfile.avatar_url = remoteData.avatar_url;
+            userProfile.username = localStorage.getItem('auth_username') || remoteData.username;
+            saveProfileLocally();
+        }
+    }
+    renderProfileUI();
+}
+
+function renderProfileUI() {
+    document.getElementById('my-nickname').innerText = userProfile.nickname || '点击设置昵称';
+    document.getElementById('my-username-display').innerText = isLoggedIn() ? `账号: ${userProfile.username}` : '账号: 游客模式';
+    document.getElementById('my-avatar-img').src = userProfile.avatar_url || 'https://via.placeholder.com/100';
+    document.getElementById('auth-btn-text').innerText = isLoggedIn() ? '退出当前账号' : '登录账号开启同步';
+    updateCreationStats();
+}
+
+function updateCreationStats() {
+    document.getElementById('stat-notes-count').innerText = notesData.length;
+    let totalWords = 0;
+    notesData.forEach(n => {
+        totalWords += (n.title ? n.title.length : 0) + getPlainTextLength(n.content);
     });
-    menuList.innerHTML = html;
+    document.getElementById('stat-words-count').innerText = totalWords;
+    document.getElementById('stat-days-count').innerText = calculateDaysInUse();
+    document.getElementById('trash-count-display').innerText = trashNotesData.length;
 }
 
-function selectFolder(folderName) {
-    currentFolder = folderName;
-    document.getElementById('page-title').innerText = folderName;
-    toggleSidebar(false);
-    renderSidebarFolders();
-    renderNotesList();
+async function editNickname() {
+    const current = (userProfile.nickname === '点击设置昵称') ? '' : userProfile.nickname;
+    const newName = prompt("请输入新昵称：", current);
+    if (newName !== null && newName.trim()) {
+        userProfile.nickname = newName.trim();
+        saveProfileLocally();
+        renderProfileUI();
+
+        if (isLoggedIn()) {
+            await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ nickname: userProfile.nickname }) });
+        }
+    }
 }
 
-function createNewFolder() {
-    let name = prompt('请输入新文件夹名称：');
+function triggerAvatarUpload() { document.getElementById('avatar-file-input').click(); }
+
+async function handleAvatarSelected(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const uploadedUrl = await uploadFileToBed(file, '/备忘录/用户头像');
+    if (uploadedUrl) {
+        userProfile.avatar_url = uploadedUrl;
+        saveProfileLocally();
+        renderProfileUI();
+
+        if (isLoggedIn()) {
+            await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ avatar_url: uploadedUrl }) });
+        }
+    }
+    input.value = '';
+}
+
+// 图床上传
+async function uploadFileToBed(file, uploadFolder) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('uploadFolder', uploadFolder);
+    formData.append('uploadChannel', 'huggingface');
+    formData.append('channelName', '浮尘');
+    formData.append('uploadNameType', 'original');
+
+    try {
+        const uploadUrl = `${IMG_BED_DOMAIN}/upload?uploadChannel=huggingface&uploadFolder=${encodeURIComponent(uploadFolder)}`;
+        const res = await fetch(uploadUrl, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        let imageUrl = '';
+        if (typeof data === 'string') imageUrl = data;
+        else if (data.url) imageUrl = data.url;
+        else if (data.src) imageUrl = data.src;
+        else if (Array.isArray(data) && data[0]) imageUrl = data[0].src || data[0].url || data[0];
+        else if (data.data && data.data.url) imageUrl = data.data.url;
+
+        if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+            const baseUrl = IMG_BED_DOMAIN.replace(/\/+$/, '');
+            imageUrl = `${baseUrl}/${imageUrl.replace(/^\/+/, '')}`;
+        }
+        return imageUrl;
+    } catch (e) {
+        alert("图片上传失败");
+        return null;
+    }
+}
+
+function triggerNoteImageSelect() { document.getElementById('note-image-file-input').click(); }
+
+async function uploadNoteImage(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const btn = document.getElementById('img-upload-btn');
+    btn.innerText = "⏳";
+    const imageUrl = await uploadFileToBed(file, '/备忘录/图片内容');
+    if (imageUrl) {
+        document.getElementById('note-content-editor').focus();
+        document.execCommand('insertHTML', false, `<img src="${imageUrl}" style="max-width:100%; border-radius:8px; margin:8px 0; display:block;" /><br>`);
+        onEditorInput();
+    }
+    btn.innerText = "🖼";
+    input.value = '';
+}
+
+/* 文件夹与笔记列表渲染 (对应图1) */
+async function fetchFolders() {
+    if (isLoggedIn()) {
+        const res = await apiFetch('/api/folders');
+        if (res && res.ok) foldersData = await res.json();
+    } else {
+        foldersData = JSON.parse(localStorage.getItem('guest_folders') || '[]');
+    }
+    renderSidebar();
+}
+
+async function createNewFolder() {
+    const name = prompt("输入新文件夹名称：");
     if (name && name.trim()) {
-        name = name.trim();
-        if (!folders.includes(name)) {
-            folders.push(name);
-            localStorage.setItem('memo_folders', JSON.stringify(folders));
-            renderSidebarFolders();
+        if (isLoggedIn()) {
+            await apiFetch('/api/folders', { method: 'POST', body: JSON.stringify({ name: name.trim() }) });
         } else {
-            alert('文件夹已存在');
+            foldersData.push({ id: Date.now(), name: name.trim() });
+            localStorage.setItem('guest_folders', JSON.stringify(foldersData));
         }
+        fetchFolders();
     }
 }
 
-// 渲染笔记列表
-function renderNotesList() {
-    const listEl = document.getElementById('notes-list');
-    let filtered = notes.filter(n => !n.deleted);
-
-    if (currentFolder === '所有笔记') {
-        // 显示全部
-    } else if (currentFolder === '已加锁') {
-        filtered = filtered.filter(n => n.locked);
-    } else {
-        if (settings.lockDisplayMode === 'locked_only') {
-            filtered = filtered.filter(n => n.folder === currentFolder && !n.locked);
-        } else {
-            filtered = filtered.filter(n => n.folder === currentFolder);
-        }
+function renderSidebar() {
+    const menu = document.getElementById('sidebar-menu-list');
+    let html = `
+        <div class="sidebar-item ${currentFilter === 'all' ? 'active' : ''}" onclick="selectFilter('all', '所有笔记')">📝 所有笔记</div>
+        <div class="sidebar-item ${currentFilter === 'locked' ? 'active' : ''}" onclick="selectFilter('locked', '加密笔记')">🔒 加密笔记</div>
+    `;
+    if (foldersData.length > 0) {
+        html += `<div style="font-size:12px; color:#8e8e93; margin: 12px 0 6px 10px;">我的文件夹</div>`;
+        html += foldersData.map(f => `
+            <div class="sidebar-item ${currentFilter === f.id ? 'active' : ''}" onclick="selectFilter(${f.id}, '${escapeHtml(f.name)}')">
+                📁 ${escapeHtml(f.name)}
+            </div>
+        `).join('');
     }
+    menu.innerHTML = html;
+}
 
-    // 排序：置顶优先，其次按时间倒序
-    filtered.sort((a, b) => {
-        if (a.pinned !== b.pinned) return b.pinned - a.pinned;
-        return new Date(b.time) - new Date(a.time);
-    });
+function selectFilter(filter, title) {
+    currentFilter = filter;
+    document.getElementById('page-title').innerText = title;
+    renderSidebar();
+    renderNotes();
+    toggleSidebar(false);
+}
+
+async function fetchNotes() {
+    if (isLoggedIn()) {
+        const res = await apiFetch('/api/notes');
+        if (res && res.ok) notesData = await res.json();
+    } else {
+        notesData = JSON.parse(localStorage.getItem('guest_notes') || '[]');
+    }
+    renderNotes();
+    updateCreationStats();
+}
+
+function getFilteredNotes() {
+    let list = notesData;
+    if (lockDisplayMode === 'locked_only' && currentFilter !== 'locked') {
+        list = list.filter(n => !n.password);
+    }
+    if (currentFilter === 'all') return list;
+    if (currentFilter === 'locked') return notesData.filter(n => !!n.password);
+    return list.filter(n => n.folder_id === currentFilter);
+}
+
+// 渲染笔记卡片（完全还原图1）
+function renderNotes() {
+    const list = document.getElementById('notes-list');
+    const filtered = getFilteredNotes();
 
     if (filtered.length === 0) {
-        listEl.innerHTML = `<div style="text-align:center; color:var(--text-sub); margin-top:40px;">暂无笔记</div>`;
+        list.innerHTML = `<div style="text-align:center; color:#8e8e93; margin-top:60px;">暂无笔记</div>`;
         return;
     }
 
-    let html = '';
-    filtered.forEach(n => {
-        let snippet = n.content.replace(/<[^>]+>/g, '');
-        html += `
-            <div class="note-item" onclick="openEditor(${n.id})" oncontextmenu="showContextMenu(event, ${n.id})">
-                <div class="note-item-title">${n.pinned ? '📌 ' : ''}${n.locked ? '🔒 ' : ''}${n.title || '无标题'}</div>
-                <div class="note-item-snippet">${snippet || '无正文内容'}</div>
-                <div class="note-item-footer">
-                    <span>${n.time}</span>
-                    <span>${n.folder}</span>
+    list.innerHTML = filtered.map(n => {
+        const isPinned = !!n.is_pinned;
+        const isLocked = !!n.password;
+        const displayTitle = n.title ? n.title : (isLocked ? '已加密备忘录' : '无标题备忘录');
+        const formattedDate = new Date(n.created_at || Date.now()).toLocaleDateString();
+
+        return `
+            <div class="note-container" id="container-${n.id}">
+                <div class="swipe-actions">
+                    <button class="action-btn pin" onclick="quickPin(${n.id}, event)">${isPinned ? '取消' : '置顶'}</button>
+                    <button class="action-btn lock" onclick="quickLock(${n.id}, event)">${isLocked ? '解密' : '加密'}</button>
+                    <button class="action-btn delete" onclick="deleteNote(${n.id}, event)">删除</button>
+                </div>
+                <div class="note-item ${isPinned ? 'pinned' : ''} ${isLocked ? 'locked' : ''}" 
+                     id="item-${n.id}" onclick="clickNote(${n.id})" 
+                     ontouchstart="handleTouchStart(event, ${n.id})" 
+                     ontouchmove="handleTouchMove(event, ${n.id})" 
+                     ontouchend="handleTouchEnd(event, ${n.id})">
+                    <div class="note-title">${escapeHtml(displayTitle)}</div>
+                    <div class="note-meta-line">
+                        <span class="note-date-tag">${formattedDate}</span>
+                        ${isPinned ? '<span class="mini-icon-box">↑</span>' : ''}
+                        ${isLocked ? '<span class="mini-icon-box">🔒</span>' : ''}
+                        ${isLocked ? '<span class="locked-dots">•••••</span>' : ''}
+                    </div>
                 </div>
             </div>
         `;
-    });
-    listEl.innerHTML = html;
+    }).join('');
 }
 
-// 编辑器相关
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.innerText = text;
+    return div.innerHTML;
+}
+
+function clickNote(id) {
+    if (currentOpenId !== null) return resetItem(currentOpenId);
+    const note = notesData.find(n => n.id === id);
+    if (!note) return;
+
+    if (note.password) {
+        const input = prompt("请输入加密密码：");
+        if (input !== note.password) return alert("密码错误！");
+    }
+    openEditor(id);
+}
+
+/* 编辑器与图2排版功能 */
 function openEditor(id = null) {
-    editingNoteId = id;
-    const titleInput = document.getElementById('note-title-input');
-    const contentEditor = document.getElementById('note-content-editor');
-    
-    if (id) {
-        const note = notes.find(n => n.id === id);
-        if (note) {
-            titleInput.value = note.title;
-            contentEditor.innerHTML = note.content;
-        }
+    currentNoteId = id;
+    const note = notesData.find(n => n.id === id);
+
+    if (note) {
+        document.getElementById('note-title-input').value = note.title || '';
+        document.getElementById('note-content-editor').innerHTML = note.content || '';
     } else {
-        titleInput.value = '';
-        contentEditor.innerHTML = '';
+        document.getElementById('note-title-input').value = '';
+        document.getElementById('note-content-editor').innerHTML = '';
     }
-    
+
+    openSubView('editor-view');
     onEditorInput();
-    document.getElementById('editor-view').classList.add('active');
 }
 
-function saveNote() {
-    const titleInput = document.getElementById('note-title-input').value.trim();
-    const contentEditor = document.getElementById('note-content-editor').innerHTML.trim();
-    
-    if (!titleInput && !contentEditor) {
-        document.getElementById('editor-view').classList.remove('active');
-        return;
-    }
+async function saveNote() {
+    const title = document.getElementById('note-title-input').value.trim();
+    const content = document.getElementById('note-content-editor').innerHTML;
 
-    let targetFolder = currentFolder;
-    if (targetFolder === '所有笔记' || targetFolder === '已加锁') {
-        targetFolder = '默认文件夹';
-    }
+    if (!title && (!content || content === '<br>')) return closeSubView('editor-view');
 
-    if (editingNoteId) {
-        const note = notes.find(n => n.id === editingNoteId);
-        if (note) {
-            note.title = titleInput || '无标题';
-            note.content = contentEditor;
-            note.time = new Date().toLocaleString();
+    const existing = notesData.find(n => n.id === currentNoteId);
+
+    if (isLoggedIn()) {
+        const method = currentNoteId ? 'PUT' : 'POST';
+        await apiFetch('/api/notes', { 
+            method, 
+            body: JSON.stringify({ id: currentNoteId, title, content, is_pinned: existing ? existing.is_pinned : 0, password: existing ? existing.password : '' }) 
+        });
+    } else {
+        if (currentNoteId) {
+            const idx = notesData.findIndex(n => n.id === currentNoteId);
+            if (idx !== -1) notesData[idx] = { ...notesData[idx], title, content };
+        } else {
+            notesData.push({ id: Date.now(), title, content, is_pinned: 0, password: '', created_at: new Date().toISOString() });
         }
-    } else {
-        const newNote = {
-            id: Date.now(),
-            title: titleInput || '无标题',
-            content: contentEditor,
-            folder: targetFolder,
-            time: new Date().toLocaleString(),
-            pinned: false,
-            locked: false,
-            deleted: false
-        };
-        notes.unshift(newNote);
+        localStorage.setItem('guest_notes', JSON.stringify(notesData));
     }
 
-    saveData();
-    document.getElementById('editor-view').classList.remove('active');
-    renderNotesList();
-    updateMineStats();
+    closeSubView('editor-view');
+    fetchNotes();
 }
 
-function onEditorInput() {
-    const content = document.getElementById('note-content-editor').innerText;
-    const wordCount = content.length;
-    if (settings.wordCount) {
-        document.getElementById('editor-word-count-tag').innerText = `${wordCount} 字`;
-    } else {
-        document.getElementById('editor-word-count-tag').innerText = '';
-    }
-}
-
-// 富文本排版控制
 function toggleAaPanel() {
-    const panel = document.getElementById('editor-aa-panel');
+    const panel = document.getElementById('editor-format-panel');
     const btn = document.getElementById('btn-toggle-aa');
     panel.classList.toggle('active');
     btn.classList.toggle('active');
 }
 
-function formatDoc(cmd, value = null) {
-    document.execCommand(cmd, false, value);
-}
-
 function setEditorFontSize(size, el) {
     document.querySelectorAll('.size-opt').forEach(o => o.classList.remove('active'));
     el.classList.add('active');
+    formatDoc('fontSize', '7');
+    
+    // 自定义改变选中文本字号
     const selection = window.getSelection();
-    if (!selection.rangeCount) return;
-    const range = selection.getRangeAt(0);
-    const span = document.createElement('span');
-    span.style.fontSize = size + 'px';
-    span.appendChild(range.extractContents());
-    range.insertNode(span);
+    if (selection.rangeCount) {
+        const range = selection.getRangeAt(0);
+        const span = document.createElement('span');
+        span.style.fontSize = size + 'px';
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+    }
 }
 
 function setEditorColor(color, el) {
     document.querySelectorAll('.color-block').forEach(b => {
         b.classList.remove('active');
-        b.innerHTML = '';
+        b.innerText = '';
     });
     el.classList.add('active');
-    el.innerHTML = '✓';
-    document.execCommand('styleWithCSS', false, true);
-    document.execCommand('foreColor', false, color);
+    el.innerText = '✓';
+    formatDoc('foreColor', color);
 }
 
 function toggleHighlight() {
-    document.execCommand('styleWithCSS', false, true);
-    document.execCommand('hiliteColor', false, '#ffcc00');
+    formatDoc('hiliteColor', '#ffeb3b');
 }
 
 function insertChecklist() {
-    const html = '<br><input type="checkbox"> 待办事项<br>';
-    document.execCommand('insertHTML', false, html);
-}
-
-function triggerNoteImageSelect() {
-    document.getElementById('note-image-file-input').click();
-}
-
-function uploadNoteImage(input) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const imgHtml = `<br><img src="${e.target.result}" style="max-width:100%; border-radius:8px; margin:8px 0;"><br>`;
-            document.execCommand('insertHTML', false, imgHtml);
-        }
-        reader.readAsDataURL(input.files[0]);
-    }
+    formatDoc('insertHTML', '<br>☑ 待办事项 ');
 }
 
 function toggleFolderSelect() {
-    alert('当前文件夹: ' + currentFolder);
+    alert('已加入默认文件夹');
 }
 
-// 长按菜单
-let contextNoteId = null;
-function showContextMenu(e, id) {
-    e.preventDefault();
-    contextNoteId = id;
-    const menu = document.getElementById('context-menu');
-    const overlay = document.getElementById('context-overlay');
-    
-    const note = notes.find(n => n.id === id);
-    if (note) {
-        document.getElementById('menu-pin-text').innerText = note.pinned ? '取消置顶' : '置顶';
-        document.getElementById('menu-lock-text').innerText = note.locked ? '取消加密' : '加密';
+function onEditorInput() {
+    const showWordCount = document.getElementById('setting-word-count').checked;
+    const tag = document.getElementById('editor-word-count-tag');
+    if (showWordCount) {
+        const title = document.getElementById('note-title-input').value || '';
+        const contentHtml = document.getElementById('note-content-editor').innerHTML || '';
+        tag.innerText = `${title.length + getPlainTextLength(contentHtml)} 字`;
+    } else {
+        tag.innerText = '';
+    }
+}
+
+/* 快捷置顶、加密、删除与滑动长按 */
+async function quickPin(id, event) {
+    if (event) event.stopPropagation();
+    resetItem(id);
+    const note = notesData.find(n => n.id === id);
+    if (!note) return;
+
+    note.is_pinned = note.is_pinned ? 0 : 1;
+    if (!isLoggedIn()) localStorage.setItem('guest_notes', JSON.stringify(notesData));
+    else await apiFetch('/api/notes', { method: 'PUT', body: JSON.stringify(note) });
+    fetchNotes();
+}
+
+async function quickLock(id, event) {
+    if (event) event.stopPropagation();
+    resetItem(id);
+    const note = notesData.find(n => n.id === id);
+    if (!note) return;
+
+    if (note.password) {
+        if (confirm("是否解密该备忘录？")) note.password = '';
+    } else {
+        const pwd = prompt("设置加密密码：");
+        if (pwd && pwd.trim()) note.password = pwd.trim();
     }
 
-    menu.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
-    menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
-    menu.classList.add('active');
-    overlay.classList.add('active');
+    if (!isLoggedIn()) localStorage.setItem('guest_notes', JSON.stringify(notesData));
+    else await apiFetch('/api/notes', { method: 'PUT', body: JSON.stringify(note) });
+    fetchNotes();
+}
+
+async function deleteNote(id, event) {
+    if (event) event.stopPropagation();
+    closeContextMenu();
+    const idx = notesData.findIndex(n => n.id === id);
+    if (idx !== -1) {
+        const [del] = notesData.splice(idx, 1);
+        del.deleted_at = Date.now();
+        trashNotesData.push(del);
+
+        if (!isLoggedIn()) {
+            localStorage.setItem('guest_notes', JSON.stringify(notesData));
+            localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
+        } else {
+            await apiFetch('/api/notes', { method: 'DELETE', body: JSON.stringify({ id }) });
+        }
+    }
+    fetchNotes();
+    renderTrashList();
+}
+
+/* 滑动与长按逻辑 */
+let startX = 0, startY = 0, currentX = 0, currentOpenId = null;
+let longPressTimer = null, isLongPressed = false;
+
+function handleTouchStart(e, id) {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    currentX = startX;
+    isLongPressed = false;
+    const item = document.getElementById(`item-${id}`);
+
+    if (currentOpenId !== null && currentOpenId !== id) resetItem(currentOpenId);
+
+    longPressTimer = setTimeout(() => {
+        isLongPressed = true;
+        if (navigator.vibrate) navigator.vibrate(30);
+        openContextMenu(id);
+    }, 450);
+}
+
+function handleTouchMove(e, id) {
+    currentX = e.touches[0].clientX;
+    const diffX = currentX - startX;
+    const diffY = e.touches[0].clientY - startY;
+
+    if (Math.abs(diffX) > 8 || Math.abs(diffY) > 8) clearTimeout(longPressTimer);
+    if (isLongPressed) return;
+
+    const item = document.getElementById(`item-${id}`);
+    if (diffX < 0 && currentOpenId !== id) {
+        item.style.transform = `translateX(${Math.max(diffX, -210)}px)`;
+    }
+}
+
+function handleTouchEnd(e, id) {
+    clearTimeout(longPressTimer);
+    if (isLongPressed) return;
+    const diffX = currentX - startX;
+    const item = document.getElementById(`item-${id}`);
+    item.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
+
+    if (currentOpenId !== id && diffX < -60) {
+        item.style.transform = `translateX(-210px)`;
+        currentOpenId = id;
+    } else {
+        resetItem(id);
+    }
+}
+
+function resetItem(id) {
+    const item = document.getElementById(`item-${id}`);
+    if (item) item.style.transform = `translateX(0px)`;
+    if (currentOpenId === id) currentOpenId = null;
+}
+
+function openContextMenu(id) {
+    activeMenuNoteId = id;
+    const note = notesData.find(n => n.id === id);
+    if (!note) return;
+
+    document.getElementById('menu-pin-text').innerText = note.is_pinned ? '取消置顶' : '置顶';
+    document.getElementById('menu-lock-text').innerText = note.password ? '解密' : '加密';
+
+    document.getElementById('context-overlay').classList.add('active');
+    document.getElementById('context-menu').classList.add('active');
 }
 
 function closeContextMenu() {
-    document.getElementById('context-menu').classList.remove('active');
     document.getElementById('context-overlay').classList.remove('active');
+    document.getElementById('context-menu').classList.remove('active');
 }
 
 function handleMenuAction(action) {
-    const note = notes.find(n => n.id === contextNoteId);
-    if (!note) return;
-
-    if (action === 'pin') {
-        note.pinned = !note.pinned;
-    } else if (action === 'lock') {
-        note.locked = !note.locked;
-    } else if (action === 'delete') {
-        note.deleted = true;
-        note.deleteTime = Date.now();
-        trash.push(note);
-        notes = notes.filter(n => n.id !== contextNoteId);
-        localStorage.setItem('memo_trash', JSON.stringify(trash));
-        updateTrashCount();
-    }
-    saveData();
+    const id = activeMenuNoteId;
     closeContextMenu();
-    renderNotesList();
-    updateMineStats();
+    if (action === 'pin') quickPin(id);
+    if (action === 'lock') quickLock(id);
+    if (action === 'delete') deleteNote(id);
 }
 
-// 数据持久化
-function saveData() {
-    localStorage.setItem('memo_notes', JSON.stringify(notes));
-}
-
-// “我的” 页面与统计
-function updateMineStats() {
-    const activeNotes = notes.filter(n => !n.deleted);
-    document.getElementById('stat-notes-count').innerText = activeNotes.length;
-    
-    let totalWords = 0;
-    activeNotes.forEach(n => {
-        totalWords += n.content.replace(/<[^>]+>/g, '').length;
-    });
-    document.getElementById('stat-words-count').innerText = totalWords;
-}
-
-function triggerAvatarUpload() {
-    document.getElementById('avatar-file-input').click();
-}
-
-function handleAvatarSelected(input) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('my-avatar-img').src = e.target.result;
-            if (currentUser) {
-                currentUser.avatar = e.target.result;
-                localStorage.setItem('memo_user', JSON.stringify(currentUser));
-            }
-        }
-        reader.readAsDataURL(input.files[0]);
-    }
-}
-
-function editNickname() {
-    let name = prompt('修改昵称：', document.getElementById('my-nickname').innerText);
-    if (name && name.trim()) {
-        document.getElementById('my-nickname').innerText = name.trim();
-        if (currentUser) {
-            currentUser.nickname = name.trim();
-            localStorage.setItem('memo_user', JSON.stringify(currentUser));
-        }
-    }
-}
-
-// 最近删除
-function updateTrashCount() {
-    const trashEl = document.getElementById('trash-count-display');
-    trashEl.innerText = trash.length;
-    
-    const trashListEl = document.getElementById('trash-list');
-    if (trash.length === 0) {
-        trashListEl.innerHTML = `<div style="text-align:center; color:var(--text-sub); margin-top:40px;">回收站为空</div>`;
-        return;
-    }
-
-    let html = '';
-    trash.forEach(n => {
-        html += `
-            <div class="note-item">
-                <div class="note-item-title">${n.title || '无标题'}</div>
-                <div class="note-item-footer">
-                    <span>删除于: ${new Date(n.deleteTime).toLocaleDateString()}</span>
-                    <span style="color:var(--ios-blue); cursor:pointer;" onclick="restoreTrash(${n.id})">还原</span>
-                </div>
-            </div>
-        `;
-    });
-    trashListEl.innerHTML = html;
-}
-
-function restoreTrash(id) {
-    const item = trash.find(n => n.id === id);
-    if (item) {
-        item.deleted = false;
-        delete item.deleteTime;
-        notes.push(item);
-        trash = trash.filter(n => n.id !== id);
-        localStorage.setItem('memo_trash', JSON.stringify(trash));
-        saveData();
-        updateTrashCount();
-        renderNotesList();
-        updateMineStats();
-    }
-}
-
-function clearAllTrash() {
-    if (confirm('确定清空所有最近删除的笔记吗？')) {
-        trash = [];
-        localStorage.setItem('memo_trash', JSON.stringify(trash));
-        updateTrashCount();
-    }
-}
-
-// 设置相关
-function initSettings() {
-    document.getElementById('setting-word-count').checked = settings.wordCount;
-    document.getElementById('setting-font-size-text').innerText = settings.fontSize;
-}
-
-function saveSettings() {
-    settings.wordCount = document.getElementById('setting-word-count').checked;
-    localStorage.setItem('memo_settings', JSON.stringify(settings));
-    onEditorInput();
-}
-
-function changeDefaultFontSize() {
-    let size = prompt('请输入默认字体大小 (px)：', settings.fontSize);
-    if (size && !isNaN(size)) {
-        settings.fontSize = parseInt(size);
-        document.getElementById('setting-font-size-text').innerText = settings.fontSize;
-        localStorage.setItem('memo_settings', JSON.stringify(settings));
-    }
-}
+/* 视图弹窗与加锁设置 */
+function openSubView(id) { document.getElementById(id).classList.add('active'); }
+function closeSubView(id) { document.getElementById(id).classList.remove('active'); }
 
 function openLockModal() {
     document.getElementById('lock-modal-overlay').classList.add('active');
     document.getElementById('lock-modal-card').classList.add('active');
-    updateLockRadioUI();
 }
 
 function closeLockModal() {
@@ -447,60 +588,93 @@ function closeLockModal() {
 }
 
 function setLockDisplayMode(mode) {
-    settings.lockDisplayMode = mode;
-    localStorage.setItem('memo_settings', JSON.stringify(settings));
-    updateLockRadioUI();
+    lockDisplayMode = mode;
     closeLockModal();
-    renderNotesList();
+    renderNotes();
 }
 
-function updateLockRadioUI() {
-    const allDot = document.getElementById('radio-lock-all');
-    const onlyDot = document.getElementById('radio-lock-only');
-    if (settings.lockDisplayMode === 'all') {
-        allDot.classList.add('selected');
-        onlyDot.classList.remove('selected');
-    } else {
-        allDot.classList.remove('selected');
-        onlyDot.classList.add('selected');
+function toggleSidebar(open) {
+    document.getElementById('sidebar-overlay').classList.toggle('active', open);
+    document.getElementById('sidebar').classList.toggle('active', open);
+}
+
+/* 回收站 */
+async function fetchTrashNotes() {
+    if (!isLoggedIn()) {
+        trashNotesData = JSON.parse(localStorage.getItem('guest_trash_notes') || '[]');
+    }
+    renderTrashList();
+}
+
+function renderTrashList() {
+    const list = document.getElementById('trash-list');
+    if (trashNotesData.length === 0) {
+        list.innerHTML = `<div style="text-align:center; color:#8e8e93; margin-top:60px;">回收站为空</div>`;
+        return;
+    }
+    list.innerHTML = trashNotesData.map(n => `
+        <div class="note-container">
+            <div class="note-item" style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div class="note-title">${escapeHtml(n.title || '无标题')}</div>
+                    <div class="note-meta-line">保留中</div>
+                </div>
+                <button class="btn" onclick="restoreTrashNote(${n.id})">恢复</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function restoreTrashNote(id) {
+    const idx = trashNotesData.findIndex(n => n.id === id);
+    if (idx !== -1) {
+        const [res] = trashNotesData.splice(idx, 1);
+        notesData.push(res);
+        localStorage.setItem('guest_notes', JSON.stringify(notesData));
+        localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
+        renderTrashList();
+        fetchNotes();
     }
 }
 
-function openSubView(viewId) {
-    document.getElementById(viewId).classList.add('active');
+function clearAllTrash() {
+    if (confirm("确定清空最近删除？")) {
+        trashNotesData = [];
+        localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
+        renderTrashList();
+        updateCreationStats();
+    }
 }
 
-function closeSubView(viewId) {
-    document.getElementById(viewId).classList.remove('active');
+function saveSettings() {
+    localStorage.setItem('app_settings', JSON.stringify({
+        wordCount: document.getElementById('setting-word-count').checked,
+        fontSize: document.getElementById('setting-font-size-text').innerText
+    }));
 }
 
-// 账号登录/注册
-function initAuthUI() {
-    const btnText = document.getElementById('auth-btn-text');
-    const usernameDisplay = document.getElementById('my-username-display');
-    const nicknameEl = document.getElementById('my-nickname');
-    const avatarImg = document.getElementById('my-avatar-img');
+function loadSavedSettings() {
+    const saved = localStorage.getItem('app_settings');
+    if (saved) {
+        const s = JSON.parse(saved);
+        document.getElementById('setting-word-count').checked = s.wordCount !== false;
+        document.getElementById('setting-font-size-text').innerText = s.fontSize || '16';
+    }
+}
 
-    if (currentUser) {
-        btnText.innerText = '退出登录';
-        btnText.style.color = 'var(--delete-red)';
-        usernameDisplay.innerText = `账号: ${currentUser.username}`;
-        nicknameEl.innerText = currentUser.nickname || currentUser.username;
-        if (currentUser.avatar) avatarImg.src = currentUser.avatar;
-    } else {
-        btnText.innerText = '登录账号开启同步';
-        btnText.style.color = 'var(--ios-yellow)';
-        usernameDisplay.innerText = '账号: 游客模式';
-        nicknameEl.innerText = '点击设置昵称';
+function changeDefaultFontSize() {
+    const size = prompt("请输入默认字号：", document.getElementById('setting-font-size-text').innerText);
+    if (size && !isNaN(size)) {
+        document.getElementById('setting-font-size-text').innerText = size.trim();
+        saveSettings();
     }
 }
 
 function handleAuthButtonClick() {
-    if (currentUser) {
-        if (confirm('确定要退出登录吗？')) {
-            currentUser = null;
-            localStorage.removeItem('memo_user');
-            initAuthUI();
+    if (isLoggedIn()) {
+        if (confirm("确定要退出登录吗？")) {
+            localStorage.removeItem('auth_token');
+            initData();
         }
     } else {
         openAuthModal();
@@ -518,40 +692,21 @@ function closeAuthModal() {
 }
 
 function toggleAuthMode() {
-    const title = document.getElementById('auth-title');
-    const submitBtn = document.getElementById('auth-submit-btn');
-    const switchBtn = document.getElementById('auth-switch-btn');
-
-    if (authMode === 'login') {
-        authMode = 'register';
-        title.innerText = '账号注册';
-        submitBtn.innerText = '注册并登录';
-        switchBtn.innerText = '已有账号？立即登录';
-    } else {
-        authMode = 'login';
-        title.innerText = '账号登录';
-        submitBtn.innerText = '登录';
-        switchBtn.innerText = '没有账号？立即注册';
-    }
+    isAuthRegisterMode = !isAuthRegisterMode;
+    document.getElementById('auth-title').innerText = isAuthRegisterMode ? "账号注册" : "账号登录";
 }
 
-function submitAuth() {
+async function submitAuth() {
     const u = document.getElementById('auth-username').value.trim();
     const p = document.getElementById('auth-password').value.trim();
-    if (!u || !p) {
-        alert('请输入用户名和密码');
-        return;
-    }
-
-    if (authMode === 'register') {
-        currentUser = { username: u, password: p, nickname: u, avatar: '' };
-        localStorage.setItem('memo_user', JSON.stringify(currentUser));
-        alert('注册成功并已登录');
-    } else {
-        currentUser = { username: u, password: p, nickname: u, avatar: '' };
-        localStorage.setItem('memo_user', JSON.stringify(currentUser));
-        alert('登录成功');
-    }
+    if (!u || !p) return alert("请填写完整");
+    
+    userProfile.username = u;
+    saveProfileLocally();
+    localStorage.setItem('auth_token', 'guest_token_' + Date.now());
+    localStorage.setItem('auth_username', u);
     closeAuthModal();
-    initAuthUI();
+    initData();
 }
+
+initData();
