@@ -7,11 +7,12 @@
     <style>
         :root { 
             --ios-yellow: #e5a90f; 
-            --bg: #f2f2f7; 
+            --bg: #f4f4f6; 
             --text: #000; 
             --delete-red: #ff3b30;
             --pin-yellow: #ff9500;
             --lock-purple: #5856d6;
+            --card-bg: #ffffff;
         }
         
         * { box-sizing: border-box; }
@@ -25,25 +26,26 @@
             -webkit-tap-highlight-color: transparent; 
             overflow-x: hidden;
             min-height: 100vh;
+            padding-bottom: 70px;
             user-select: none;
             -webkit-user-select: none;
         }
 
-        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 24px; font-weight: bold; }
+        /* 顶部 Header */
+        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 24px; font-weight: bold; background: var(--bg); }
         .header-left { display: flex; align-items: center; gap: 12px; }
-        .header-right { display: flex; align-items: center; gap: 10px; }
         .menu-btn { font-size: 24px; cursor: pointer; color: var(--ios-yellow); background: none; border: none; padding: 0; }
         .btn { color: var(--ios-yellow); background: none; border: none; font-size: 17px; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; }
-        .user-tag { font-size: 14px; background: rgba(229, 169, 15, 0.15); padding: 4px 10px; border-radius: 12px; color: var(--ios-yellow); font-weight: 500; cursor: pointer; }
         
+        /* Tab 容器 */
+        .tab-view { display: none; }
+        .tab-view.active { display: block; }
+
         .section-title { padding: 12px 20px 6px; font-size: 13px; color: #8e8e93; font-weight: 600; text-transform: uppercase; }
-        #notes-list { padding: 0 20px 40px; }
-        
+        #notes-list { padding: 0 20px 20px; }
+
         /* 侧边栏抽屉 UI */
-        #sidebar-overlay {
-            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3);
-            z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
-        }
+        #sidebar-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         #sidebar-overlay.active { opacity: 1; pointer-events: auto; }
 
         .sidebar {
@@ -56,17 +58,11 @@
         .sidebar.active { transform: translateX(0); }
         .sidebar-title { font-size: 22px; font-weight: bold; margin-bottom: 20px; }
         .sidebar-menu { list-style: none; padding: 0; margin: 0; flex: 1; overflow-y: auto; }
-        .sidebar-item {
-            padding: 12px 14px; border-radius: 10px; margin-bottom: 6px; font-size: 16px;
-            display: flex; justify-content: space-between; align-items: center; cursor: pointer;
-        }
+        .sidebar-item { padding: 12px 14px; border-radius: 10px; margin-bottom: 6px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .sidebar-item.active { background: rgba(229, 169, 15, 0.15); color: var(--ios-yellow); font-weight: 600; }
-        .add-folder-btn {
-            margin-top: 10px; padding: 12px; border: 1px dashed var(--ios-yellow);
-            color: var(--ios-yellow); border-radius: 10px; text-align: center; font-weight: 500; cursor: pointer;
-        }
+        .add-folder-btn { margin-top: 10px; padding: 12px; border: 1px dashed var(--ios-yellow); color: var(--ios-yellow); border-radius: 10px; text-align: center; font-weight: 500; cursor: pointer; }
 
-        /* 卡片及侧滑动作 */
+        /* 笔记卡片及滑动选项 */
         .note-container { position: relative; margin-bottom: 10px; border-radius: 12px; overflow: hidden; background: #c7c7cc; }
         .swipe-actions { position: absolute; right: 0; top: 0; bottom: 0; display: flex; width: 210px; z-index: 1; }
         .action-btn { flex: 1; border: none; color: white; font-size: 15px; font-weight: 500; display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -86,19 +82,57 @@
         .note-badge { font-size: 14px; margin-left: 8px; display: flex; gap: 4px; }
         .note-item-date { font-size: 13px; color: #8e8e93; margin-top: 4px; }
 
-        /* 长按菜单 */
-        #context-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+        /* 🎨 “我的”页面组件样式（完美还原图片） */
+        .profile-header { padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
+        .avatar-wrapper { position: relative; width: 68px; height: 68px; cursor: pointer; }
+        .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #e5e5ea; }
+        .avatar-edit-icon { position: absolute; bottom: 0; right: 0; background: rgba(0,0,0,0.5); color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+        .user-info { flex: 1; }
+        .user-nickname { font-size: 22px; font-weight: 800; color: #000; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .user-account { font-size: 14px; color: #8e8e93; margin-top: 4px; }
+
+        .mine-card { background: var(--card-bg); border-radius: 20px; padding: 20px; margin: 0 20px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .card-header-title { font-size: 18px; font-weight: bold; margin-bottom: 16px; color: #1c1c1e; }
+
+        .creation-stats { display: flex; justify-content: space-around; align-items: flex-end; text-align: left; padding: 10px 0; }
+        .stat-item { flex: 1; text-align: center; }
+        .stat-label { font-size: 14px; color: #8e8e93; margin-bottom: 8px; }
+        .stat-num { font-size: 32px; font-weight: 800; color: #000; line-height: 1; }
+        .stat-unit { font-size: 13px; color: #8e8e93; font-weight: normal; margin-left: 2px; }
+
+        .list-card { background: var(--card-bg); border-radius: 20px; margin: 0 20px 16px; overflow: hidden; }
+        .list-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 16px; color: #1c1c1e; cursor: pointer; border-bottom: 0.5px solid #f2f2f7; }
+        .list-row:last-child { border-bottom: none; }
+        .list-row-right { display: flex; align-items: center; gap: 8px; color: #8e8e93; font-size: 15px; }
+        .chevron { color: #c7c7cc; font-size: 18px; font-family: monospace; }
+
+        /* iOS 开关组件 */
+        .ios-switch { position: relative; width: 51px; height: 31px; appearance: none; background: #e9e9ea; border-radius: 31px; outline: none; transition: 0.25s; cursor: pointer; }
+        .ios-switch:checked { background: var(--ios-yellow); }
+        .ios-switch::after { content: ''; position: absolute; width: 27px; height: 27px; border-radius: 50%; background: white; top: 2px; left: 2px; transition: 0.25s; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .ios-switch:checked::after { transform: translateX(20px); }
+
+        /* 🔻 底部导航栏 */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; height: 60px;
+            background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: center; z-index: 150;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #8e8e93; font-size: 11px; cursor: pointer; flex: 1; height: 100%; }
+        .nav-item.active { color: var(--ios-yellow); font-weight: 600; }
+        .nav-icon { font-size: 20px; }
+
+        /* 长按菜单 & Auth 弹窗 & 设置页面 */
+        #context-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(10px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
         #context-overlay.active { opacity: 1; pointer-events: auto; }
         .context-menu {
             position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.8); width: 250px;
-            background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 14px; z-index: 60; opacity: 0; pointer-events: none; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease; overflow: hidden;
+            background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(20px); border-radius: 14px; z-index: 60; opacity: 0; pointer-events: none; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); overflow: hidden;
         }
         .context-menu.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
         .menu-item { padding: 14px 18px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(0,0,0,0.1); cursor: pointer; }
         .menu-item.danger { color: var(--delete-red); }
 
-        /* 登录/注册 Modal UI */
         #auth-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(5px); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
         #auth-modal-overlay.active { opacity: 1; pointer-events: auto; }
         .auth-card {
@@ -112,13 +146,16 @@
         .auth-btn { width: 100%; padding: 12px; background: var(--ios-yellow); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; }
         .auth-switch { text-align: center; font-size: 13px; color: #8e8e93; margin-top: 14px; cursor: pointer; }
 
-        /* 编辑器界面 */
-        #editor-view { 
-            position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: white; z-index: 100; display: flex; flex-direction: column; 
+        /* 全屏子视图 (设置/编辑器) */
+        .sub-view { 
+            position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: var(--bg); z-index: 100; display: flex; flex-direction: column; 
             opacity: 0; pointer-events: none; transform: translateX(100%); transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
         }
-        #editor-view.active { opacity: 1; pointer-events: auto; transform: translateX(0); }
-        .editor-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #e5e5ea; }
+        .sub-view.active { opacity: 1; pointer-events: auto; transform: translateX(0); }
+        .sub-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--bg); font-size: 18px; font-weight: bold; }
+
+        /* 编辑器内部结构 */
+        #editor-view { background: white; }
         .title-input { border: none; outline: none; font-size: 22px; font-weight: bold; padding: 16px 20px 8px; width: calc(100% - 40px); font-family: inherit; }
         .toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 20px; background: #f8f8f8; border-bottom: 1px solid #e5e5ea; flex-wrap: wrap; }
         .tool-btn { background: white; border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; }
@@ -129,16 +166,127 @@
     </style>
 </head>
 <body>
-    <header>
-        <div class="header-left">
-            <button class="menu-btn" onclick="toggleSidebar(true)">☰</button>
-            <div id="page-title">所有笔记</div>
-        </div>
-        <div class="header-right">
-            <div id="user-display" class="user-tag" onclick="handleUserClick()">👤 游客模式 (点击登录)</div>
+
+    <!-- 1. 笔记主页 TAB -->
+    <div id="tab-notes" class="tab-view active">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar(true)">☰</button>
+                <div id="page-title">所有笔记</div>
+            </div>
             <button class="btn" onclick="openEditor()">&#10133;</button>
+        </header>
+        <div id="notes-list"></div>
+    </div>
+
+    <!-- 2. “我的” 页面 TAB (图示完美还原) -->
+    <div id="tab-mine" class="tab-view">
+        <div class="profile-header">
+            <div class="avatar-wrapper" onclick="triggerAvatarUpload()">
+                <img id="my-avatar-img" class="avatar-img" src="https://via.placeholder.com/100" alt="头像">
+                <div class="avatar-edit-icon">📷</div>
+            </div>
+            <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" onchange="handleAvatarSelected(this)">
+            <div class="user-info">
+                <div class="user-nickname" onclick="editNickname()">
+                    <span id="my-nickname">点击设置昵称</span> ✏️
+                </div>
+                <div class="user-account" id="my-username-display">账号: 游客模式</div>
+            </div>
         </div>
-    </header>
+
+        <!-- 我的创作 卡片 -->
+        <div class="mine-card">
+            <div class="card-header-title">我的创作</div>
+            <div class="creation-stats">
+                <div class="stat-item">
+                    <div class="stat-label">笔记</div>
+                    <div class="stat-num"><span id="stat-notes-count">0</span><span class="stat-unit">篇</span></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">待办</div>
+                    <div class="stat-num">0<span class="stat-unit">条</span></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">文档</div>
+                    <div class="stat-num">0<span class="stat-unit">份</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 其他设置 卡片列表 -->
+        <div class="section-title">其他设置</div>
+        <div class="list-card">
+            <div class="list-row" onclick="alert('可以直接使用手机/电脑浏览器打开当前网址，登录账号即可跨端协同编辑笔记。')">
+                <span>在电脑、iPad 编辑笔记</span>
+                <span class="chevron">></span>
+            </div>
+            <div class="list-row" onclick="alert('最近删除功能暂未产生已被永久清空的数据')">
+                <span>最近删除</span>
+                <div class="list-row-right">
+                    <span>0</span>
+                    <span class="chevron">></span>
+                </div>
+            </div>
+            <div class="list-row" onclick="openSubView('settings-view')">
+                <span>设置</span>
+                <span class="chevron">></span>
+            </div>
+        </div>
+
+        <!-- 登录 / 退出 按钮列表 -->
+        <div class="list-card">
+            <div class="list-row" onclick="handleAuthButtonClick()" style="justify-content: center; color: var(--ios-yellow); font-weight: bold;">
+                <span id="auth-btn-text">登录账号开启同步</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔻 底部导航栏 -->
+    <div class="bottom-nav">
+        <div class="nav-item active" id="nav-notes" onclick="switchTab('notes')">
+            <div class="nav-icon">📝</div>
+            <div>笔记</div>
+        </div>
+        <div class="nav-item" id="nav-mine" onclick="switchTab('mine')">
+            <div class="nav-icon">👤</div>
+            <div>我的</div>
+        </div>
+    </div>
+
+    <!-- 3. 设置 界面 (图片4还原) -->
+    <div id="settings-view" class="sub-view">
+        <div class="sub-header">
+            <button class="btn" onclick="closeSubView('settings-view')">&#10094; 设置</button>
+            <div></div>
+        </div>
+        <div class="section-title">笔记</div>
+        <div class="list-card">
+            <div class="list-row" onclick="alert('已开启全局加锁笔记显示控制')">
+                <span>加锁笔记显示设置</span>
+                <span class="chevron">></span>
+            </div>
+            <div class="list-row">
+                <span>笔记列表显示皮肤</span>
+                <input type="checkbox" class="ios-switch" id="setting-skin" onchange="saveSettings()">
+            </div>
+            <div class="list-row">
+                <span>笔记内容页面显示字数</span>
+                <input type="checkbox" class="ios-switch" id="setting-word-count" checked onchange="saveSettings()">
+            </div>
+            <div class="list-row" onclick="changeDefaultFontSize()">
+                <span>笔记默认字号</span>
+                <div class="list-row-right">
+                    <span id="setting-font-size-text">16</span>
+                    <span class="chevron">></span>
+                </div>
+            </div>
+            <div class="list-row">
+                <span>录音保存位置信息</span>
+                <input type="checkbox" class="ios-switch" id="setting-location" onchange="saveSettings()">
+            </div>
+        </div>
+    </div>
 
     <!-- 侧边栏抽屉 -->
     <div id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
@@ -147,8 +295,6 @@
         <div class="sidebar-menu" id="sidebar-menu-list"></div>
         <div class="add-folder-btn" onclick="createNewFolder()">+ 新建文件夹</div>
     </div>
-    
-    <div id="notes-list"></div>
 
     <!-- 长按菜单 -->
     <div id="context-overlay" onclick="closeContextMenu()"></div>
@@ -169,8 +315,8 @@
     </div>
 
     <!-- 编辑器视图 -->
-    <div id="editor-view">
-        <div class="editor-header">
+    <div id="editor-view" class="sub-view">
+        <div class="sub-header" style="border-bottom: 1px solid #e5e5ea;">
             <button class="btn" onclick="saveNote()">&#10094; 备忘录</button>
             <button class="btn" onclick="saveNote()" style="font-weight: bold;">完成</button>
         </div>
@@ -186,8 +332,8 @@
                 <option value="7">超大字号</option>
             </select>
             <input type="color" class="color-picker" onchange="formatDoc('foreColor', this.value)">
-            <button class="tool-btn" id="img-upload-btn" onclick="triggerImageSelect()">📷 图片</button>
-            <input type="file" id="image-file-input" accept="image/*" style="display:none;" onchange="uploadImageToBed(this)">
+            <button class="tool-btn" id="img-upload-btn" onclick="triggerNoteImageSelect()">📷 图片</button>
+            <input type="file" id="note-image-file-input" accept="image/*" style="display:none;" onchange="uploadNoteImage(this)">
             <select id="editor-folder-select" class="tool-btn"></select>
         </div>
         <div id="note-content-editor" class="editor-content" contenteditable="true" placeholder="开始输入内容..."></div>
@@ -202,43 +348,37 @@
         let currentFilter = 'all';
         let activeMenuNoteId = null;
         let isAuthRegisterMode = false;
+        let userProfile = { nickname: '', avatar_url: '', username: '' };
 
         function getToken() { return localStorage.getItem('auth_token'); }
         function isLoggedIn() { return !!getToken(); }
-
         function formatDoc(cmd, value = null) { document.execCommand(cmd, false, value); }
 
         async function initData() {
-            updateUserUI();
+            await fetchUserProfile();
             await fetchFolders();
             await fetchNotes();
+            loadSavedSettings();
         }
 
-        function updateUserUI() {
-            const display = document.getElementById('user-display');
-            if (isLoggedIn()) {
-                const uname = localStorage.getItem('auth_username') || '已登录';
-                display.innerText = `👤 ${uname} (退出)`;
-            } else {
-                display.innerText = `👤 游客模式 (点击登录)`;
+        /* 切换 Tab 页面 */
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+            if (tab === 'notes') {
+                document.getElementById('tab-notes').classList.add('active');
+                document.getElementById('nav-notes').classList.add('active');
+            } else if (tab === 'mine') {
+                document.getElementById('tab-mine').classList.add('active');
+                document.getElementById('nav-mine').classList.add('active');
+                fetchUserProfile(); // 切换时刷新用户资料
             }
         }
 
-        function handleUserClick() {
-            if (isLoggedIn()) {
-                if (confirm("确定要退出登录吗？")) {
-                    localStorage.removeItem('auth_token');
-                    localStorage.removeItem('auth_username');
-                    initData();
-                }
-            } else {
-                openAuthModal();
-            }
-        }
-
-        /* 网络 API 请求代理助手 */
+        /* 网络 API 助手 */
         async function apiFetch(url, options = {}) {
-            if (!isLoggedIn()) return null; // 游客模式走本地
+            if (!isLoggedIn()) return null;
             const token = getToken();
             options.headers = {
                 ...options.headers,
@@ -254,6 +394,127 @@
                 return null;
             }
             return res;
+        }
+
+        /* 获取与保存用户资料 (包含头像/昵称) */
+        async function fetchUserProfile() {
+            if (isLoggedIn()) {
+                const res = await apiFetch('/api/user/profile');
+                if (res && res.ok) {
+                    userProfile = await res.json();
+                }
+            } else {
+                userProfile = {
+                    username: '游客模式',
+                    nickname: localStorage.getItem('guest_nickname') || '游客',
+                    avatar_url: localStorage.getItem('guest_avatar') || 'https://via.placeholder.com/100',
+                    note_count: notesData.length
+                };
+            }
+            renderProfileUI();
+        }
+
+        function renderProfileUI() {
+            document.getElementById('my-nickname').innerText = userProfile.nickname || userProfile.username || '未设置昵称';
+            document.getElementById('my-username-display').innerText = isLoggedIn() ? `账号: ${userProfile.username}` : '账号: 游客模式';
+            document.getElementById('my-avatar-img').src = userProfile.avatar_url || 'https://via.placeholder.com/100';
+            document.getElementById('stat-notes-count').innerText = notesData.length;
+            document.getElementById('auth-btn-text').innerText = isLoggedIn() ? '退出当前账号' : '登录账号开启同步';
+        }
+
+        async function editNickname() {
+            const newName = prompt("请输入新昵称：", userProfile.nickname);
+            if (newName && newName.trim()) {
+                const trimmed = newName.trim();
+                userProfile.nickname = trimmed;
+                if (isLoggedIn()) {
+                    await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ nickname: trimmed }) });
+                } else {
+                    localStorage.setItem('guest_nickname', trimmed);
+                }
+                renderProfileUI();
+            }
+        }
+
+        function triggerAvatarUpload() { document.getElementById('avatar-file-input').click(); }
+
+        async function handleAvatarSelected(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            // 📸 上传路径：/备忘录/用户头像
+            const uploadedUrl = await uploadFileToBed(file, '/备忘录/用户头像');
+            if (uploadedUrl) {
+                userProfile.avatar_url = uploadedUrl;
+                if (isLoggedIn()) {
+                    await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ avatar_url: uploadedUrl }) });
+                } else {
+                    localStorage.setItem('guest_avatar', uploadedUrl);
+                }
+                renderProfileUI();
+            }
+            input.value = '';
+        }
+
+        /* 通用图床上传逻辑 */
+        async function uploadFileToBed(file, uploadFolder) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('uploadFolder', uploadFolder);
+            formData.append('uploadChannel', 'huggingface');
+            formData.append('channelName', '浮尘');
+            formData.append('uploadNameType', 'original');
+
+            try {
+                const uploadUrl = `${IMG_BED_DOMAIN}/upload?uploadChannel=huggingface&uploadFolder=${encodeURIComponent(uploadFolder)}`;
+                const res = await fetch(uploadUrl, { method: 'POST', body: formData });
+                const data = await res.json();
+
+                let imageUrl = '';
+                if (typeof data === 'string') imageUrl = data;
+                else if (data.url) imageUrl = data.url;
+                else if (data.src) imageUrl = data.src;
+                else if (Array.isArray(data) && data[0]) imageUrl = data[0].src || data[0].url || data[0];
+                else if (data.data && data.data.url) imageUrl = data.data.url;
+
+                if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+                    const baseUrl = IMG_BED_DOMAIN.replace(/\/+$/, '');
+                    const path = imageUrl.replace(/^\/+/, '');
+                    imageUrl = `${baseUrl}/${path}`;
+                }
+                return imageUrl;
+            } catch (e) {
+                alert("图片上传失败，请稍后重试");
+                return null;
+            }
+        }
+
+        /* 🖼️ 笔记插入图片 (保存路径改为了：/备忘录/图片内容) */
+        function triggerNoteImageSelect() { document.getElementById('note-image-file-input').click(); }
+
+        async function uploadNoteImage(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const btn = document.getElementById('img-upload-btn');
+            btn.innerText = "⏳ 上传中...";
+            btn.disabled = true;
+
+            const imageUrl = await uploadFileToBed(file, '/备忘录/图片内容');
+            if (imageUrl) {
+                insertImageToEditor(imageUrl);
+            }
+
+            btn.innerText = "📷 图片";
+            btn.disabled = false;
+            input.value = '';
+        }
+
+        function insertImageToEditor(url) {
+            const editor = document.getElementById('note-content-editor');
+            editor.focus();
+            const imgHtml = `<img src="${url}" style="max-width:100%; border-radius:8px; margin:8px 0; display:block;" /><br>`;
+            document.execCommand('insertHTML', false, imgHtml);
         }
 
         /* 文件夹管理 */
@@ -295,7 +556,7 @@
             }
         }
 
-        /* 笔记获取与渲染 */
+        /* 笔记 CRUD 与渲染 */
         async function fetchNotes() {
             if (isLoggedIn()) {
                 const res = await apiFetch('/api/notes');
@@ -305,64 +566,21 @@
                 notesData = JSON.parse(localStorage.getItem('guest_notes') || '[]');
             }
             renderNotes();
+            document.getElementById('stat-notes-count').innerText = notesData.length;
         }
 
-        /* 图床图片上传 */
-        function triggerImageSelect() { document.getElementById('image-file-input').click(); }
-
-        async function uploadImageToBed(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            const btn = document.getElementById('img-upload-btn');
-            const originalText = btn.innerHTML;
-            btn.innerText = "⏳ 上传中...";
-            btn.disabled = true;
-
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('uploadFolder', '/备忘录/');
-            formData.append('uploadChannel', 'huggingface');
-            formData.append('channelName', '浮尘');
-            formData.append('uploadNameType', 'original');
-
-            try {
-                const uploadUrl = `${IMG_BED_DOMAIN}/upload?uploadChannel=huggingface&uploadFolder=${encodeURIComponent('/备忘录/')}`;
-                const res = await fetch(uploadUrl, { method: 'POST', body: formData });
-                const data = await res.json();
-                
-                let imageUrl = '';
-                if (typeof data === 'string') imageUrl = data;
-                else if (data.url) imageUrl = data.url;
-                else if (data.src) imageUrl = data.src;
-                else if (Array.isArray(data) && data[0]) imageUrl = data[0].src || data[0].url || data[0];
-                else if (data.data && data.data.url) imageUrl = data.data.url;
-
-                if (imageUrl) {
-                    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-                        const baseUrl = IMG_BED_DOMAIN.replace(/\/+$/, '');
-                        const path = imageUrl.replace(/^\/+/, '');
-                        imageUrl = `${baseUrl}/${path}`;
-                    }
-                    insertImageToEditor(imageUrl);
-                } else alert('上传成功但未解析出图片链接');
-            } catch (err) {
-                alert('图片上传失败，请检查网络或 CORS 设置');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                input.value = '';
+        function handleAuthButtonClick() {
+            if (isLoggedIn()) {
+                if (confirm("确定要退出登录吗？")) {
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('auth_username');
+                    initData();
+                }
+            } else {
+                openAuthModal();
             }
         }
 
-        function insertImageToEditor(url) {
-            const editor = document.getElementById('note-content-editor');
-            editor.focus();
-            const imgHtml = `<img src="${url}" style="max-width:100%; border-radius:8px; margin:8px 0; display:block;" /><br>`;
-            document.execCommand('insertHTML', false, imgHtml);
-        }
-
-        /* Auth Modal 控制 */
         function openAuthModal() {
             isAuthRegisterMode = false;
             document.getElementById('auth-title').innerText = "账号登录";
@@ -405,7 +623,7 @@
                 if (res.ok && data.token) {
                     localStorage.setItem('auth_token', data.token);
                     localStorage.setItem('auth_username', data.username);
-                    localStorage.removeItem('guest_notes'); // 清空本地游客缓存
+                    localStorage.removeItem('guest_notes');
 
                     alert(guestNotes.length > 0 ? "登录成功！本地游客笔记已成功合并至你的云端账号！" : "登录成功！");
                     closeAuthModal();
@@ -418,7 +636,6 @@
             }
         }
 
-        /* 侧边栏及渲染逻辑 */
         function toggleSidebar(open) {
             document.getElementById('sidebar-overlay').classList.toggle('active', open);
             document.getElementById('sidebar').classList.toggle('active', open);
@@ -540,7 +757,7 @@
             const content = document.getElementById('note-content-editor').innerHTML;
             const folder_id = parseInt(document.getElementById('editor-folder-select').value) || 0;
 
-            if (!title && (!content || content === '<br>')) return closeEditor();
+            if (!title && (!content || content === '<br>')) return closeSubView('editor-view');
 
             const existingNote = notesData.find(n => n.id === currentNoteId);
 
@@ -566,7 +783,7 @@
                 localStorage.setItem('guest_notes', JSON.stringify(notesData));
             }
 
-            closeEditor();
+            closeSubView('editor-view');
             fetchNotes();
         }
 
@@ -628,7 +845,7 @@
             }, 200);
         }
 
-        /* 触摸滑动与长按逻辑 */
+        /* 滑动与长按逻辑 */
         let startX = 0, startY = 0, currentX = 0, currentOpenId = null;
         let longPressTimer = null, isLongPressed = false;
 
@@ -731,6 +948,10 @@
             if (action === 'delete') deleteNote(id, { stopPropagation: () => {} });
         }
 
+        /* 视图弹窗控制 (编辑器 & 设置页) */
+        function openSubView(viewId) { document.getElementById(viewId).classList.add('active'); }
+        function closeSubView(viewId) { document.getElementById(viewId).classList.remove('active'); }
+
         function openEditor(id = null) {
             currentNoteId = id;
             const note = notesData.find(n => n.id === id);
@@ -745,14 +966,41 @@
                 document.getElementById('editor-folder-select').value = (typeof currentFilter === 'number') ? currentFilter : 0;
             }
 
-            document.getElementById('editor-view').classList.add('active');
+            openSubView('editor-view');
         }
 
-        function closeEditor() {
-            document.getElementById('editor-view').classList.remove('active');
+        /* 设置保存与加载 */
+        function saveSettings() {
+            const settings = {
+                skin: document.getElementById('setting-skin').checked,
+                wordCount: document.getElementById('setting-word-count').checked,
+                location: document.getElementById('setting-location').checked,
+                fontSize: document.getElementById('setting-font-size-text').innerText
+            };
+            localStorage.setItem('app_settings', JSON.stringify(settings));
+        }
+
+        function loadSavedSettings() {
+            const saved = localStorage.getItem('app_settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                document.getElementById('setting-skin').checked = settings.skin || false;
+                document.getElementById('setting-word-count').checked = settings.wordCount !== false;
+                document.getElementById('setting-location').checked = settings.location || false;
+                document.getElementById('setting-font-size-text').innerText = settings.fontSize || '16';
+            }
+        }
+
+        function changeDefaultFontSize() {
+            const size = prompt("请输入笔记默认字号 (如 14, 16, 18)：", document.getElementById('setting-font-size-text').innerText);
+            if (size && !isNaN(size)) {
+                document.getElementById('setting-font-size-text').innerText = size.trim();
+                saveSettings();
+            }
         }
 
         initData();
     </script>
 </body>
 </html>
+     
