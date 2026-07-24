@@ -8,21 +8,23 @@
         :root { --ios-yellow: #e5a90f; --bg: #f2f2f7; --text: #000; --delete-red: #ff3b30; }
         body { 
             margin: 0 auto; 
-            max-width: 600px; /* 适配电脑屏幕，居中显示 */
+            max-width: 600px; 
             font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif; 
             background: var(--bg); 
             color: var(--text); 
             -webkit-tap-highlight-color: transparent; 
             overflow-x: hidden;
             min-height: 100vh;
-            box-shadow: 0 0 15px rgba(0,0,0,0.05); /* 在电脑端增加轻微的阴影边缘 */
+            box-shadow: 0 0 15px rgba(0,0,0,0.05);
         }
         header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 34px; font-weight: bold; }
-        .btn { color: var(--ios-yellow); background: none; border: none; font-size: 17px; cursor: pointer; padding: 0; }
-        #notes-list { padding: 0 20px; overflow-x: hidden; }
+        .btn { color: var(--ios-yellow); background: none; border: none; font-size: 17px; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; }
+        .btn.active { color: #007aff; font-weight: bold; }
+        
+        .section-title { padding: 10px 20px 4px; font-size: 13px; color: #8e8e93; text-transform: uppercase; }
+        #notes-list { padding: 0 20px 20px; }
         
         .note-container { position: relative; margin-bottom: 10px; border-radius: 10px; overflow: hidden; background: var(--delete-red); }
-        
         .note-item { 
             background: white; 
             padding: 12px 16px; 
@@ -30,31 +32,36 @@
             z-index: 2; 
             transition: transform 0.3s ease; 
             touch-action: pan-y;
+            cursor: pointer;
         }
-        .note-title { font-weight: 500; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .note-header-line { display: flex; justify-content: space-between; align-items: center; }
+        .note-title { font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .note-badge { font-size: 14px; margin-left: 6px; }
         .note-item-date { font-size: 13px; color: #8e8e93; margin-top: 4px; }
         
         .delete-btn {
-            position: absolute;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            width: 80px;
-            background: var(--delete-red);
-            color: white;
-            border: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: 500;
-            z-index: 1;
-            cursor: pointer;
+            position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+            background: var(--delete-red); color: white; border: none;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 500; z-index: 1; cursor: pointer;
         }
         
+        /* 编辑器界面 */
         #editor-view { display: none; position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: white; z-index: 10; flex-direction: column; }
-        .editor-header { display: flex; justify-content: space-between; padding: 16px 20px; }
-        textarea { flex: 1; border: none; padding: 0 20px 20px; font-size: 17px; line-height: 1.5; outline: none; font-family: inherit; resize: none; }
+        .editor-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #e5e5ea; }
+        .editor-actions { display: flex; gap: 16px; }
+        
+        /* 标题与内容 */
+        .title-input { border: none; outline: none; font-size: 22px; font-weight: bold; padding: 16px 20px 8px; width: calc(100% - 40px); font-family: inherit; }
+        
+        /* 排版工具栏 */
+        .toolbar { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background: #f8f8f8; border-bottom: 1px solid #e5e5ea; flex-wrap: wrap; }
+        .tool-btn { background: white; border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 14px; cursor: pointer; }
+        .color-picker { border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; background: transparent; }
+
+        /* 可编辑富文本区域 */
+        .editor-content { flex: 1; padding: 12px 20px; font-size: 17px; line-height: 1.5; outline: none; overflow-y: auto; word-break: break-word; }
+        .editor-content[placeholder]:empty:before { content: attr(placeholder); color: #a9a9a9; }
     </style>
 </head>
 <body>
@@ -65,17 +72,48 @@
     
     <div id="notes-list"></div>
 
+    <!-- 编辑器视图 -->
     <div id="editor-view">
         <div class="editor-header">
             <button class="btn" onclick="closeEditor()">&#10094; 备忘录</button>
-            <button class="btn" onclick="saveNote()">完成</button>
+            <div class="editor-actions">
+                <button class="btn" id="pin-btn" onclick="togglePin()">📌</button>
+                <button class="btn" id="lock-btn" onclick="toggleLock()">🔒</button>
+                <button class="btn" onclick="saveNote()" style="font-weight: bold;">完成</button>
+            </div>
         </div>
-        <textarea id="note-content" placeholder="输入内容..."></textarea>
+        
+        <!-- 标题输入框 -->
+        <input type="text" id="note-title-input" class="title-input" placeholder="标题">
+
+        <!-- 富文本格式化工具栏 -->
+        <div class="toolbar">
+            <button class="tool-btn" onclick="formatDoc('bold')" title="加粗"><b>B</b></button>
+            <button class="tool-btn" onclick="formatDoc('italic')" title="斜体"><i>I</i></button>
+            <button class="tool-btn" onclick="formatDoc('underline')" title="下划线"><u>U</u></button>
+            <select class="tool-btn" onchange="formatDoc('fontSize', this.value)">
+                <option value="3">标准字号</option>
+                <option value="1">小字号</option>
+                <option value="5">大字号</option>
+                <option value="7">超大字号</option>
+            </select>
+            <input type="color" class="color-picker" onchange="formatDoc('foreColor', this.value)" title="文字颜色">
+        </div>
+
+        <!-- 富文本内容区域 -->
+        <div id="note-content-editor" class="editor-content" contenteditable="true" placeholder="开始输入内容..."></div>
     </div>
 
     <script>
         let currentNoteId = null;
         let notesData = [];
+        let isPinned = false;
+        let currentPassword = '';
+
+        // 执行富文本格式化指令
+        function formatDoc(cmd, value = null) {
+            document.execCommand(cmd, false, value);
+        }
 
         async function fetchNotes() {
             try {
@@ -86,7 +124,7 @@
                     notesData = [];
                 }
             } catch (e) {
-                console.error("无法获取备忘录数据", e);
+                console.error("获取失败", e);
                 notesData = [];
             }
             renderNotes();
@@ -94,24 +132,91 @@
 
         function renderNotes() {
             const list = document.getElementById('notes-list');
-            list.innerHTML = notesData.map(n => `
+            if (notesData.length === 0) {
+                list.innerHTML = `<div style="text-align:center; color:#8e8e93; margin-top:40px;">无备忘录</div>`;
+                return;
+            }
+
+            const pinnedNotes = notesData.filter(n => n.is_pinned);
+            const otherNotes = notesData.filter(n => !n.is_pinned);
+
+            let html = '';
+
+            if (pinnedNotes.length > 0) {
+                html += `<div class="section-title">置顶</div>`;
+                html += pinnedNotes.map(n => renderNoteItem(n)).join('');
+            }
+
+            if (otherNotes.length > 0) {
+                if (pinnedNotes.length > 0) html += `<div class="section-title">备忘录</div>`;
+                html += otherNotes.map(n => renderNoteItem(n)).join('');
+            }
+
+            list.innerHTML = html;
+        }
+
+        function renderNoteItem(n) {
+            const isLocked = !!n.password;
+            const displayTitle = n.title ? n.title : (isLocked ? '已加密备忘录' : '无标题备忘录');
+            
+            return `
                 <div class="note-container" id="container-${n.id}">
                     <div class="delete-btn" onclick="deleteNote(${n.id}, event)">删除</div>
-                    <div class="note-item" id="item-${n.id}" onclick="openEditor(${n.id})" 
+                    <div class="note-item" id="item-${n.id}" onclick="clickNote(${n.id})" 
                          ontouchstart="handleTouchStart(event, ${n.id})" 
                          ontouchmove="handleTouchMove(event, ${n.id})" 
                          ontouchend="handleTouchEnd(event, ${n.id})">
-                        <div class="note-title">${n.content ? n.content.split('\n')[0] : '新备忘录'}</div>
+                        <div class="note-header-line">
+                            <div class="note-title">${escapeHtml(displayTitle)}</div>
+                            <div class="note-badge">
+                                ${n.is_pinned ? '📌' : ''}
+                                ${isLocked ? '🔒' : ''}
+                            </div>
+                        </div>
                         <div class="note-item-date">${new Date(n.created_at).toLocaleDateString()}</div>
                     </div>
                 </div>
-            `).join('');
+            `;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.innerText = text;
+            return div.innerHTML;
+        }
+
+        function clickNote(id) {
+            const note = notesData.find(n => n.id === id);
+            if (!note) return;
+
+            // 检查是否有加密
+            if (note.password) {
+                const input = prompt("该备忘录已加密，请输入密码：");
+                if (input !== note.password) {
+                    alert("密码错误！");
+                    return;
+                }
+            }
+            openEditor(id);
         }
 
         function openEditor(id = null) {
             currentNoteId = id;
             const note = notesData.find(n => n.id === id);
-            document.getElementById('note-content').value = note ? note.content : '';
+
+            if (note) {
+                document.getElementById('note-title-input').value = note.title || '';
+                document.getElementById('note-content-editor').innerHTML = note.content || '';
+                isPinned = !!note.is_pinned;
+                currentPassword = note.password || '';
+            } else {
+                document.getElementById('note-title-input').value = '';
+                document.getElementById('note-content-editor').innerHTML = '';
+                isPinned = false;
+                currentPassword = '';
+            }
+
+            updateActionButtons();
             document.getElementById('editor-view').style.display = 'flex';
         }
 
@@ -119,30 +224,67 @@
             document.getElementById('editor-view').style.display = 'none';
         }
 
+        function togglePin() {
+            isPinned = !isPinned;
+            updateActionButtons();
+        }
+
+        function toggleLock() {
+            if (currentPassword) {
+                if (confirm("是否清除此备忘录的密码？")) {
+                    currentPassword = '';
+                }
+            } else {
+                const pwd = prompt("设置访问密码：");
+                if (pwd !== null) {
+                    currentPassword = pwd.trim();
+                }
+            }
+            updateActionButtons();
+        }
+
+        function updateActionButtons() {
+            const pinBtn = document.getElementById('pin-btn');
+            const lockBtn = document.getElementById('lock-btn');
+            
+            if (isPinned) pinBtn.classList.add('active');
+            else pinBtn.classList.remove('active');
+
+            if (currentPassword) lockBtn.classList.add('active');
+            else lockBtn.classList.remove('active');
+        }
+
         async function saveNote() {
-            const content = document.getElementById('note-content').value;
-            if (!content.trim()) return closeEditor();
-            
+            const title = document.getElementById('note-title-input').value.trim();
+            const content = document.getElementById('note-content-editor').innerHTML;
+
+            if (!title && !content) return closeEditor();
+
             const method = currentNoteId ? 'PUT' : 'POST';
-            const body = JSON.stringify({ id: currentNoteId, content });
-            
+            const body = JSON.stringify({ 
+                id: currentNoteId, 
+                title, 
+                content, 
+                is_pinned: isPinned ? 1 : 0, 
+                password: currentPassword 
+            });
+
             try {
                 await fetch('/api/notes', { method, headers: { 'Content-Type': 'application/json' }, body });
             } catch(e) {
                 console.error("保存失败", e);
             }
-            
+
             closeEditor();
             fetchNotes();
         }
 
         async function deleteNote(id, event) {
-            event.stopPropagation(); 
-            
+            event.stopPropagation();
             const container = document.getElementById(`container-${id}`);
             container.style.opacity = '0';
             container.style.transition = 'opacity 0.2s';
-            
+
             setTimeout(async () => {
                 try {
                     await fetch('/api/notes', { 
@@ -158,23 +300,18 @@
             }, 200);
         }
 
-        // 滑动删除逻辑
-        let startX = 0;
-        let currentX = 0;
-        let currentOpenId = null;
+        // 滑动删除手势
+        let startX = 0, currentX = 0, currentOpenId = null;
 
         function handleTouchStart(e, id) {
             startX = e.touches[0].clientX;
-            if (currentOpenId !== null && currentOpenId !== id) {
-                resetItem(currentOpenId);
-            }
+            if (currentOpenId !== null && currentOpenId !== id) resetItem(currentOpenId);
         }
 
         function handleTouchMove(e, id) {
             const item = document.getElementById(`item-${id}`);
             currentX = e.touches[0].clientX;
             const diff = currentX - startX;
-            
             if (diff < 0) {
                 if (currentOpenId !== id) {
                    const move = Math.max(diff, -80);
@@ -192,26 +329,20 @@
             const item = document.getElementById(`item-${id}`);
             const diff = currentX - startX;
             item.style.transition = 'transform 0.3s ease';
-            
             if (currentOpenId !== id && diff < -40) {
                 item.style.transform = `translateX(-80px)`;
                 currentOpenId = id;
             } else if (currentOpenId === id && diff > 40) {
                 resetItem(id);
             } else {
-                if (currentOpenId === id) {
-                    item.style.transform = `translateX(-80px)`;
-                } else {
-                    resetItem(id);
-                }
+                if (currentOpenId === id) item.style.transform = `translateX(-80px)`;
+                else resetItem(id);
             }
         }
 
         function resetItem(id) {
             const item = document.getElementById(`item-${id}`);
-            if(item) {
-                item.style.transform = `translateX(0px)`;
-            }
+            if (item) item.style.transform = `translateX(0px)`;
             if (currentOpenId === id) currentOpenId = null;
         }
 
