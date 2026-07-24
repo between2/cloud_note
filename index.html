@@ -29,94 +29,72 @@
             -webkit-user-select: none;
         }
 
-        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 34px; font-weight: bold; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 28px; font-weight: bold; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .menu-btn { font-size: 24px; cursor: pointer; color: var(--ios-yellow); background: none; border: none; padding: 0; }
         .btn { color: var(--ios-yellow); background: none; border: none; font-size: 17px; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; }
         
         .section-title { padding: 12px 20px 6px; font-size: 13px; color: #8e8e93; font-weight: 600; text-transform: uppercase; }
         #notes-list { padding: 0 20px 40px; }
         
-        /* 列表卡片容器 */
-        .note-container { 
-            position: relative; 
-            margin-bottom: 10px; 
-            border-radius: 12px; 
-            overflow: hidden; 
-            background: #c7c7cc;
+        /* 侧边栏抽屉 UI */
+        #sidebar-overlay {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3);
+            z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        #sidebar-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .sidebar {
+            position: fixed; top: 0; bottom: 0; left: 0; width: 280px;
+            background: rgba(248, 248, 248, 0.92);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            z-index: 210; transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            padding: 20px; display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.1);
+        }
+        .sidebar.active { transform: translateX(0); }
+        .sidebar-title { font-size: 22px; font-weight: bold; margin-bottom: 20px; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; flex: 1; overflow-y: auto; }
+        .sidebar-item {
+            padding: 12px 14px; border-radius: 10px; margin-bottom: 6px; font-size: 16px;
+            display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+        }
+        .sidebar-item.active { background: rgba(229, 169, 15, 0.15); color: var(--ios-yellow); font-weight: 600; }
+        .add-folder-btn {
+            margin-top: 10px; padding: 12px; border: 1px dashed var(--ios-yellow);
+            color: var(--ios-yellow); border-radius: 10px; text-align: center; font-weight: 500; cursor: pointer;
         }
 
-        /* 侧滑按钮组 */
-        .swipe-actions {
-            position: absolute; right: 0; top: 0; bottom: 0;
-            display: flex; width: 210px; z-index: 1;
-        }
-        .action-btn {
-            flex: 1; border: none; color: white; font-size: 15px; font-weight: 500;
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
-        }
+        /* 卡片及侧滑动画 */
+        .note-container { position: relative; margin-bottom: 10px; border-radius: 12px; overflow: hidden; background: #c7c7cc; }
+        .swipe-actions { position: absolute; right: 0; top: 0; bottom: 0; display: flex; width: 210px; z-index: 1; }
+        .action-btn { flex: 1; border: none; color: white; font-size: 15px; font-weight: 500; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .action-btn.pin { background: var(--pin-yellow); }
         .action-btn.lock { background: var(--lock-purple); }
         .action-btn.delete { background: var(--delete-red); }
 
-        /* 卡片主体 */
         .note-item { 
-            background: white; 
-            padding: 14px 16px; 
-            position: relative; 
-            z-index: 2; 
-            transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.25s ease; 
-            touch-action: pan-y;
-            cursor: pointer;
-            border-radius: 12px;
+            background: white; padding: 14px 16px; position: relative; z-index: 2; 
+            transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1); touch-action: pan-y; cursor: pointer; border-radius: 12px;
         }
-
-        /* 长按时的按压与浮起动画类 */
-        .note-item.pressing {
-            transform: scale(0.96) !important;
-            transition: transform 0.15s ease-out !important;
-        }
-        .note-item.pop-active {
-            z-index: 50 !important;
-            transform: scale(1.03) !important;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.25);
-            transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-        }
+        .note-item.pressing { transform: scale(0.96) !important; transition: transform 0.15s ease-out !important; }
+        .note-item.pop-active { z-index: 50 !important; transform: scale(1.03) !important; box-shadow: 0 15px 35px rgba(0,0,0,0.25); }
 
         .note-header-line { display: flex; justify-content: space-between; align-items: center; }
         .note-title { font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
         .note-badge { font-size: 14px; margin-left: 8px; display: flex; gap: 4px; }
         .note-item-date { font-size: 13px; color: #8e8e93; margin-top: 4px; }
 
-        /* iOS 原生高斯模糊遮罩与弹出菜单 */
-        #context-overlay {
-            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            z-index: 40; opacity: 0; pointer-events: none;
-            transition: opacity 0.25s ease;
-        }
+        /* 长按高斯模糊弹窗 */
+        #context-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
         #context-overlay.active { opacity: 1; pointer-events: auto; }
-
         .context-menu {
-            position: fixed; left: 50%; top: 50%;
-            transform: translate(-50%, -50%) scale(0.8);
-            width: 250px; background: rgba(255, 255, 255, 0.88);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 14px; z-index: 60; opacity: 0; pointer-events: none;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-            transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
-            overflow: hidden;
+            position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.8); width: 250px;
+            background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 14px; z-index: 60; opacity: 0; pointer-events: none; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease; overflow: hidden;
         }
-        .context-menu.active {
-            opacity: 1; pointer-events: auto;
-            transform: translate(-50%, -50%) scale(1);
-        }
-        .menu-item {
-            padding: 14px 18px; font-size: 16px; display: flex; justify-content: space-between;
-            align-items: center; border-bottom: 0.5px solid rgba(0,0,0,0.1); cursor: pointer;
-            color: #000;
-        }
-        .menu-item:last-child { border-bottom: none; }
+        .context-menu.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+        .menu-item { padding: 14px 18px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(0,0,0,0.1); cursor: pointer; }
         .menu-item.danger { color: var(--delete-red); }
-        .menu-item:active { background: rgba(0,0,0,0.05); }
 
         /* 编辑器界面 */
         #editor-view { display: none; position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: white; z-index: 100; flex-direction: column; }
@@ -131,24 +109,29 @@
 </head>
 <body>
     <header>
-        <div>备忘录</div>
+        <div class="header-left">
+            <button class="menu-btn" onclick="toggleSidebar(true)">☰</button>
+            <div id="page-title">所有笔记</div>
+        </div>
         <button class="btn" onclick="openEditor()">&#10133;</button>
     </header>
+
+    <!-- 侧边栏抽屉 -->
+    <div id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-title">文件夹</div>
+        <div class="sidebar-menu" id="sidebar-menu-list"></div>
+        <div class="add-folder-btn" onclick="createNewFolder()">+ 新建文件夹</div>
+    </div>
     
     <div id="notes-list"></div>
 
-    <!-- 长按菜单与背景遮罩 -->
+    <!-- 长按菜单 -->
     <div id="context-overlay" onclick="closeContextMenu()"></div>
     <div id="context-menu" class="context-menu">
-        <div class="menu-item" id="menu-pin-btn" onclick="handleMenuAction('pin')">
-            <span id="menu-pin-text">置顶</span> <span>📌</span>
-        </div>
-        <div class="menu-item" id="menu-lock-btn" onclick="handleMenuAction('lock')">
-            <span id="menu-lock-text">加密</span> <span>🔒</span>
-        </div>
-        <div class="menu-item danger" onclick="handleMenuAction('delete')">
-            <span>删除</span> <span>🗑️</span>
-        </div>
+        <div class="menu-item" onclick="handleMenuAction('pin')"><span id="menu-pin-text">置顶</span> 📌</div>
+        <div class="menu-item" onclick="handleMenuAction('lock')"><span id="menu-lock-text">加密</span> 🔒</div>
+        <div class="menu-item danger" onclick="handleMenuAction('delete')"><span>删除</span> 🗑️</div>
     </div>
 
     <!-- 编辑器视图 -->
@@ -171,6 +154,8 @@
                 <option value="7">超大字号</option>
             </select>
             <input type="color" class="color-picker" onchange="formatDoc('foreColor', this.value)">
+            <!-- 预留分类选择 -->
+            <select id="editor-folder-select" class="tool-btn"></select>
         </div>
 
         <div id="note-content-editor" class="editor-content" contenteditable="true" placeholder="开始输入内容..."></div>
@@ -179,10 +164,24 @@
     <script>
         let currentNoteId = null;
         let notesData = [];
+        let foldersData = [];
+        let currentFilter = 'all'; // 'all', 'locked', 或 folder_id (数字)
         let activeMenuNoteId = null;
 
-        function formatDoc(cmd, value = null) {
-            document.execCommand(cmd, false, value);
+        function formatDoc(cmd, value = null) { document.execCommand(cmd, false, value); }
+
+        async function initData() {
+            await fetchFolders();
+            await fetchNotes();
+        }
+
+        async function fetchFolders() {
+            try {
+                const res = await fetch('/api/folders');
+                if (res.ok) foldersData = await res.json();
+                else foldersData = [];
+            } catch (e) { foldersData = []; }
+            renderSidebar();
         }
 
         async function fetchNotes() {
@@ -190,22 +189,95 @@
                 const res = await fetch('/api/notes');
                 if (res.ok) notesData = await res.json();
                 else notesData = [];
-            } catch (e) {
-                console.error("获取失败", e);
-                notesData = [];
-            }
+            } catch (e) { notesData = []; }
             renderNotes();
+        }
+
+        /* 侧边栏与过滤逻辑 */
+        function toggleSidebar(open) {
+            document.getElementById('sidebar-overlay').classList.toggle('active', open);
+            document.getElementById('sidebar').classList.toggle('active', open);
+        }
+
+        function renderSidebar() {
+            const menu = document.getElementById('sidebar-menu-list');
+            let html = `
+                <div class="sidebar-item ${currentFilter === 'all' ? 'active' : ''}" onclick="selectFilter('all', '所有笔记')">
+                    <span>📝 所有笔记</span>
+                </div>
+                <div class="sidebar-item ${currentFilter === 'locked' ? 'active' : ''}" onclick="selectFilter('locked', '加密笔记')">
+                    <span>🔒 加密笔记</span>
+                </div>
+            `;
+
+            if (foldersData.length > 0) {
+                html += `<div style="font-size:12px; color:#8e8e93; margin: 12px 0 6px 10px;">我的文件夹</div>`;
+                html += foldersData.map(f => `
+                    <div class="sidebar-item ${currentFilter === f.id ? 'active' : ''}" onclick="selectFilter(${f.id}, '${escapeHtml(f.name)}')">
+                        <span>📁 ${escapeHtml(f.name)}</span>
+                        <span onclick="deleteFolder(${f.id}, event)" style="font-size:12px; opacity:0.5;">✕</span>
+                    </div>
+                `).join('');
+            }
+            menu.innerHTML = html;
+
+            // 更新编辑器内部的文件夹下拉菜单
+            const select = document.getElementById('editor-folder-select');
+            select.innerHTML = `<option value="0">未分类</option>` + 
+                foldersData.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+        }
+
+        function selectFilter(filter, title) {
+            currentFilter = filter;
+            document.getElementById('page-title').innerText = title;
+            renderSidebar();
+            renderNotes();
+            toggleSidebar(false);
+        }
+
+        async function createNewFolder() {
+            const name = prompt("输入新文件夹名称：");
+            if (name && name.trim()) {
+                await fetch('/api/folders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name.trim() })
+                });
+                fetchFolders();
+            }
+        }
+
+        async function deleteFolder(id, event) {
+            event.stopPropagation();
+            if (confirm("确定删除该文件夹？（里面的笔记不会丢失，会移至未分类）")) {
+                await fetch('/api/folders', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                if (currentFilter === id) selectFilter('all', '所有笔记');
+                else fetchFolders();
+            }
+        }
+
+        /* 根据当前选中分组筛选列表 */
+        function getFilteredNotes() {
+            if (currentFilter === 'all') return notesData;
+            if (currentFilter === 'locked') return notesData.filter(n => !!n.password);
+            return notesData.filter(n => n.folder_id === currentFilter);
         }
 
         function renderNotes() {
             const list = document.getElementById('notes-list');
-            if (notesData.length === 0) {
-                list.innerHTML = `<div style="text-align:center; color:#8e8e93; margin-top:60px;">无备忘录</div>`;
+            const filtered = getFilteredNotes();
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<div style="text-align:center; color:#8e8e93; margin-top:60px;">该分组无备忘录</div>`;
                 return;
             }
 
-            const pinnedNotes = notesData.filter(n => n.is_pinned);
-            const otherNotes = notesData.filter(n => !n.is_pinned);
+            const pinnedNotes = filtered.filter(n => n.is_pinned);
+            const otherNotes = filtered.filter(n => !n.is_pinned);
 
             let html = '';
             if (pinnedNotes.length > 0) {
@@ -253,9 +325,8 @@
             return div.innerHTML;
         }
 
-        /* 点击卡片逻辑 */
         function clickNote(id) {
-            if (currentOpenId === id) return; // 如果处于侧滑打开状态，不响应点击
+            if (currentOpenId === id) return;
             const note = notesData.find(n => n.id === id);
             if (!note) return;
 
@@ -269,7 +340,6 @@
             openEditor(id);
         }
 
-        /* 快捷 API 操作（置顶 / 加密） */
         async function updateNoteApi(note) {
             try {
                 await fetch('/api/notes', {
@@ -278,9 +348,7 @@
                     body: JSON.stringify(note)
                 });
                 fetchNotes();
-            } catch (e) {
-                console.error("更新失败", e);
-            }
+            } catch (e) { console.error("更新失败", e); }
         }
 
         function quickPin(id, event) {
@@ -313,35 +381,23 @@
             }
         }
 
-        /* 手势交互：iOS 侧滑 + 触控反馈长按 */
+        /* 极致长按手势与侧滑 */
         let startX = 0, startY = 0, currentX = 0, currentOpenId = null;
-        let longPressTimer = null;
-        let isLongPressed = false;
+        let longPressTimer = null, isLongPressed = false;
 
         function handleTouchStart(e, id) {
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
             isLongPressed = false;
-
             const item = document.getElementById(`item-${id}`);
 
-            // 如果已有打开的侧滑菜单，先关掉
-            if (currentOpenId !== null && currentOpenId !== id) {
-                resetItem(currentOpenId);
-            }
-
-            // 按下缩小反馈
+            if (currentOpenId !== null && currentOpenId !== id) resetItem(currentOpenId);
             item.classList.add('pressing');
 
-            // 启动长按定时器 (450ms)
             longPressTimer = setTimeout(() => {
                 isLongPressed = true;
                 item.classList.remove('pressing');
-                
-                // 触发震动反馈 (如设备支持)
                 if (navigator.vibrate) navigator.vibrate([20, 30]);
-
-                // 浮起动画 + 弹出高斯模糊菜单
                 item.classList.add('pop-active');
                 openContextMenu(id);
             }, 450);
@@ -349,21 +405,17 @@
 
         function handleTouchMove(e, id) {
             currentX = e.touches[0].clientX;
-            const currentY = e.touches[0].clientY;
             const diffX = currentX - startX;
-            const diffY = currentY - startY;
+            const diffY = e.touches[0].clientY - startY;
 
-            // 移动超过 8px 取消长按
             if (Math.abs(diffX) > 8 || Math.abs(diffY) > 8) {
                 clearTimeout(longPressTimer);
                 document.getElementById(`item-${id}`).classList.remove('pressing');
             }
 
             if (isLongPressed) return;
-
             const item = document.getElementById(`item-${id}`);
 
-            // 处理左滑手势（最大展现 210px 的侧滑菜单）
             if (diffX < 0) {
                 if (currentOpenId !== id) {
                     const move = Math.max(diffX, -210);
@@ -383,7 +435,6 @@
             item.classList.remove('pressing');
 
             if (isLongPressed) return;
-
             const diffX = currentX - startX;
             item.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
 
@@ -404,7 +455,6 @@
             if (currentOpenId === id) currentOpenId = null;
         }
 
-        /* iOS 长按菜单逻辑 */
         function openContextMenu(id) {
             activeMenuNoteId = id;
             const note = notesData.find(n => n.id === id);
@@ -420,7 +470,6 @@
         function closeContextMenu() {
             document.getElementById('context-overlay').classList.remove('active');
             document.getElementById('context-menu').classList.remove('active');
-            
             if (activeMenuNoteId !== null) {
                 const item = document.getElementById(`item-${activeMenuNoteId}`);
                 if (item) item.classList.remove('pop-active');
@@ -431,13 +480,12 @@
         function handleMenuAction(action) {
             const id = activeMenuNoteId;
             closeContextMenu();
-
             if (action === 'pin') quickPin(id, { stopPropagation: () => {} });
             if (action === 'lock') quickLock(id, { stopPropagation: () => {} });
             if (action === 'delete') deleteNote(id, { stopPropagation: () => {} });
         }
 
-        /* 编辑器常规操作 */
+        /* 编辑器逻辑 */
         function openEditor(id = null) {
             currentNoteId = id;
             const note = notesData.find(n => n.id === id);
@@ -445,9 +493,12 @@
             if (note) {
                 document.getElementById('note-title-input').value = note.title || '';
                 document.getElementById('note-content-editor').innerHTML = note.content || '';
+                document.getElementById('editor-folder-select').value = note.folder_id || 0;
             } else {
                 document.getElementById('note-title-input').value = '';
                 document.getElementById('note-content-editor').innerHTML = '';
+                // 如果当前处于某个自定义分类下，新建时默认选中该分类
+                document.getElementById('editor-folder-select').value = (typeof currentFilter === 'number') ? currentFilter : 0;
             }
 
             document.getElementById('editor-view').style.display = 'flex';
@@ -460,6 +511,7 @@
         async function saveNote() {
             const title = document.getElementById('note-title-input').value.trim();
             const content = document.getElementById('note-content-editor').innerHTML;
+            const folder_id = parseInt(document.getElementById('editor-folder-select').value) || 0;
 
             if (!title && !content) return closeEditor();
 
@@ -471,14 +523,13 @@
                 title, 
                 content, 
                 is_pinned: existingNote ? existingNote.is_pinned : 0, 
-                password: existingNote ? existingNote.password : '' 
+                password: existingNote ? existingNote.password : '',
+                folder_id
             });
 
             try {
                 await fetch('/api/notes', { method, headers: { 'Content-Type': 'application/json' }, body });
-            } catch(e) {
-                console.error("保存失败", e);
-            }
+            } catch(e) { console.error("保存失败", e); }
 
             closeEditor();
             fetchNotes();
@@ -491,6 +542,7 @@
             const container = document.getElementById(`container-${id}`);
             if (container) {
                 container.style.opacity = '0';
+                container.style.transform = 'scale(0.9)';
                 container.style.transition = 'opacity 0.2s, transform 0.2s';
             }
 
@@ -502,14 +554,11 @@
                         body: JSON.stringify({ id }) 
                     });
                     fetchNotes();
-                } catch(e) {
-                    console.error("删除失败", e);
-                    fetchNotes();
-                }
+                } catch(e) { fetchNotes(); }
             }, 200);
         }
 
-        fetchNotes();
+        initData();
     </script>
 </body>
 </html>
