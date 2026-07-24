@@ -45,14 +45,14 @@
         #notes-list { padding: 0 20px 20px; }
 
         /* 侧边栏抽屉 UI */
-        #sidebar-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        #sidebar-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         #sidebar-overlay.active { opacity: 1; pointer-events: auto; }
 
         .sidebar {
             position: fixed; top: 0; bottom: 0; left: 0; width: 280px;
             background: rgba(248, 248, 248, 0.92);
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            z-index: 210; transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 310; transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             padding: 20px; display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.1);
         }
         .sidebar.active { transform: translateX(0); }
@@ -82,7 +82,7 @@
         .note-badge { font-size: 14px; margin-left: 8px; display: flex; gap: 4px; }
         .note-item-date { font-size: 13px; color: #8e8e93; margin-top: 4px; }
 
-        /* 🎨 “我的”页面组件样式（完美还原图片） */
+        /* “我的”页面组件样式 */
         .profile-header { padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
         .avatar-wrapper { position: relative; width: 68px; height: 68px; cursor: pointer; }
         .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #e5e5ea; }
@@ -97,7 +97,7 @@
         .creation-stats { display: flex; justify-content: space-around; align-items: flex-end; text-align: left; padding: 10px 0; }
         .stat-item { flex: 1; text-align: center; }
         .stat-label { font-size: 14px; color: #8e8e93; margin-bottom: 8px; }
-        .stat-num { font-size: 32px; font-weight: 800; color: #000; line-height: 1; }
+        .stat-num { font-size: 28px; font-weight: 800; color: #000; line-height: 1; }
         .stat-unit { font-size: 13px; color: #8e8e93; font-weight: normal; margin-left: 2px; }
 
         .list-card { background: var(--card-bg); border-radius: 20px; margin: 0 20px 16px; overflow: hidden; }
@@ -122,22 +122,56 @@
         .nav-item.active { color: var(--ios-yellow); font-weight: 600; }
         .nav-icon { font-size: 20px; }
 
-        /* 长按菜单 & Auth 弹窗 & 设置页面 */
-        #context-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(10px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+        /* 全屏子视图 (设置/编辑器/回收站) -> z-index提升至250，完美挡住底部导航栏 */
+        .sub-view { 
+            position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: var(--bg); z-index: 250; display: flex; flex-direction: column; 
+            opacity: 0; pointer-events: none; transform: translateX(100%); transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+        }
+        .sub-view.active { opacity: 1; pointer-events: auto; transform: translateX(0); }
+        .sub-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--bg); font-size: 18px; font-weight: bold; }
+
+        /* 通用 Modal 遮罩及卡片 */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px); z-index: 400; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        /* 加锁笔记设置模态框 (完美还原图片) */
+        .lock-modal-card {
+            position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.9);
+            width: 320px; background: #f9f9f9; border-radius: 18px; padding: 22px 0 0;
+            z-index: 410; opacity: 0; pointer-events: none; transition: all 0.25s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); overflow: hidden;
+        }
+        .lock-modal-card.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+        .lock-modal-title { font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 20px; padding: 0 20px; color: #000; }
+        .lock-option-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; font-size: 15px; color: #1c1c1e; border-top: 0.5px solid #e5e5ea; cursor: pointer; text-align: left;
+        }
+        .lock-radio-dot {
+            width: 20px; height: 20px; border-radius: 50%; border: 2px solid #c7c7cc;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: 12px;
+        }
+        .lock-radio-dot.checked { border-color: var(--ios-yellow); background: var(--ios-yellow); }
+        .lock-radio-dot.checked::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: white; }
+        .lock-cancel-btn {
+            text-align: center; padding: 14px; font-size: 17px; font-weight: bold;
+            color: var(--ios-yellow); border-top: 0.5px solid #e5e5ea; cursor: pointer; background: #f9f9f9; margin-top: 8px;
+        }
+
+        /* 长按菜单 & Auth 弹窗 */
+        #context-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(10px); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
         #context-overlay.active { opacity: 1; pointer-events: auto; }
         .context-menu {
             position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.8); width: 250px;
-            background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(20px); border-radius: 14px; z-index: 60; opacity: 0; pointer-events: none; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); overflow: hidden;
+            background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(20px); border-radius: 14px; z-index: 310; opacity: 0; pointer-events: none; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); overflow: hidden;
         }
         .context-menu.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
         .menu-item { padding: 14px 18px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(0,0,0,0.1); cursor: pointer; }
         .menu-item.danger { color: var(--delete-red); }
 
-        #auth-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(5px); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
-        #auth-modal-overlay.active { opacity: 1; pointer-events: auto; }
         .auth-card {
             position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(0.9); width: 300px;
-            background: white; border-radius: 16px; padding: 24px; z-index: 310; opacity: 0; pointer-events: none;
+            background: white; border-radius: 16px; padding: 24px; z-index: 410; opacity: 0; pointer-events: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: all 0.25s ease;
         }
         .auth-card.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
@@ -145,14 +179,6 @@
         .auth-input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #e5e5ea; border-radius: 10px; font-size: 15px; outline: none; background: #f9f9f9; }
         .auth-btn { width: 100%; padding: 12px; background: var(--ios-yellow); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 6px; }
         .auth-switch { text-align: center; font-size: 13px; color: #8e8e93; margin-top: 14px; cursor: pointer; }
-
-        /* 全屏子视图 (设置/编辑器) */
-        .sub-view { 
-            position: fixed; inset: 0; margin: 0 auto; max-width: 600px; background: var(--bg); z-index: 100; display: flex; flex-direction: column; 
-            opacity: 0; pointer-events: none; transform: translateX(100%); transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
-        }
-        .sub-view.active { opacity: 1; pointer-events: auto; transform: translateX(0); }
-        .sub-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--bg); font-size: 18px; font-weight: bold; }
 
         /* 编辑器内部结构 */
         #editor-view { background: white; }
@@ -163,6 +189,7 @@
         .editor-content { flex: 1; padding: 12px 20px; font-size: 17px; line-height: 1.5; outline: none; overflow-y: auto; word-break: break-word; user-select: text; -webkit-user-select: text; }
         .editor-content img { max-width: 100%; border-radius: 8px; margin: 8px 0; display: block; }
         .editor-content[placeholder]:empty:before { content: attr(placeholder); color: #a9a9a9; }
+        .word-count-badge { font-size: 13px; color: #8e8e93; font-weight: normal; margin-left: auto; }
     </style>
 </head>
 <body>
@@ -179,7 +206,7 @@
         <div id="notes-list"></div>
     </div>
 
-    <!-- 2. “我的” 页面 TAB (图示完美还原) -->
+    <!-- 2. “我的” 页面 TAB -->
     <div id="tab-mine" class="tab-view">
         <div class="profile-header">
             <div class="avatar-wrapper" onclick="triggerAvatarUpload()">
@@ -204,12 +231,12 @@
                     <div class="stat-num"><span id="stat-notes-count">0</span><span class="stat-unit">篇</span></div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">待办</div>
-                    <div class="stat-num">0<span class="stat-unit">条</span></div>
+                    <div class="stat-label">累计字数</div>
+                    <div class="stat-num"><span id="stat-words-count">0</span><span class="stat-unit">字</span></div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">文档</div>
-                    <div class="stat-num">0<span class="stat-unit">份</span></div>
+                    <div class="stat-label">使用天数</div>
+                    <div class="stat-num"><span id="stat-days-count">1</span><span class="stat-unit">天</span></div>
                 </div>
             </div>
         </div>
@@ -221,10 +248,10 @@
                 <span>在电脑、iPad 编辑笔记</span>
                 <span class="chevron">></span>
             </div>
-            <div class="list-row" onclick="alert('最近删除功能暂未产生已被永久清空的数据')">
+            <div class="list-row" onclick="openSubView('trash-view')">
                 <span>最近删除</span>
                 <div class="list-row-right">
-                    <span>0</span>
+                    <span id="trash-count-display">0</span>
                     <span class="chevron">></span>
                 </div>
             </div>
@@ -254,7 +281,7 @@
         </div>
     </div>
 
-    <!-- 3. 设置 界面 (图片4还原) -->
+    <!-- 3. 设置 界面 -->
     <div id="settings-view" class="sub-view">
         <div class="sub-header">
             <button class="btn" onclick="closeSubView('settings-view')">&#10094; 设置</button>
@@ -262,7 +289,7 @@
         </div>
         <div class="section-title">笔记</div>
         <div class="list-card">
-            <div class="list-row" onclick="alert('已开启全局加锁笔记显示控制')">
+            <div class="list-row" onclick="openLockModal()">
                 <span>加锁笔记显示设置</span>
                 <span class="chevron">></span>
             </div>
@@ -281,11 +308,32 @@
                     <span class="chevron">></span>
                 </div>
             </div>
-            <div class="list-row">
-                <span>录音保存位置信息</span>
-                <input type="checkbox" class="ios-switch" id="setting-location" onchange="saveSettings()">
-            </div>
         </div>
+    </div>
+
+    <!-- 4. 最近删除 界面 -->
+    <div id="trash-view" class="sub-view">
+        <div class="sub-header">
+            <button class="btn" onclick="closeSubView('trash-view')">&#10094; 最近删除</button>
+            <button class="btn" onclick="clearAllTrash()" style="color:var(--delete-red);">清空</button>
+        </div>
+        <div class="section-title">保留天数为 7 天，过期将彻底清除</div>
+        <div id="trash-list" style="padding: 0 20px 20px;"></div>
+    </div>
+
+    <!-- 5. 加锁笔记显示设置 弹窗 -->
+    <div id="lock-modal-overlay" class="modal-overlay" onclick="closeLockModal()"></div>
+    <div id="lock-modal-card" class="lock-modal-card">
+        <div class="lock-modal-title">加锁笔记显示设置</div>
+        <div class="lock-option-row" onclick="setLockDisplayMode('all')">
+            <span>在“已加锁”分类和原文件夹中均可显示加锁笔记</span>
+            <div class="lock-radio-dot" id="radio-lock-all"></div>
+        </div>
+        <div class="lock-option-row" onclick="setLockDisplayMode('locked_only')">
+            <span>仅在“已加锁”分类中显示加锁笔记</span>
+            <div class="lock-radio-dot" id="radio-lock-only"></div>
+        </div>
+        <div class="lock-cancel-btn" onclick="closeLockModal()">取消</div>
     </div>
 
     <!-- 侧边栏抽屉 -->
@@ -305,7 +353,7 @@
     </div>
 
     <!-- 账号 Auth 弹窗 -->
-    <div id="auth-modal-overlay" onclick="closeAuthModal()"></div>
+    <div id="auth-modal-overlay" class="modal-overlay" onclick="closeAuthModal()"></div>
     <div id="auth-card" class="auth-card">
         <div class="auth-title" id="auth-title">账号登录</div>
         <input type="text" id="auth-username" class="auth-input" placeholder="用户名">
@@ -318,7 +366,8 @@
     <div id="editor-view" class="sub-view">
         <div class="sub-header" style="border-bottom: 1px solid #e5e5ea;">
             <button class="btn" onclick="saveNote()">&#10094; 备忘录</button>
-            <button class="btn" onclick="saveNote()" style="font-weight: bold;">完成</button>
+            <div class="word-count-badge" id="editor-word-count-tag"></div>
+            <button class="btn" onclick="saveNote()" style="font-weight: bold; margin-left:12px;">完成</button>
         </div>
         <input type="text" id="note-title-input" class="title-input" placeholder="标题">
         <div class="toolbar">
@@ -336,29 +385,55 @@
             <input type="file" id="note-image-file-input" accept="image/*" style="display:none;" onchange="uploadNoteImage(this)">
             <select id="editor-folder-select" class="tool-btn"></select>
         </div>
-        <div id="note-content-editor" class="editor-content" contenteditable="true" placeholder="开始输入内容..."></div>
+        <div id="note-content-editor" class="editor-content" contenteditable="true" placeholder="开始输入内容..." oninput="onEditorInput()"></div>
     </div>
-
     <script>
         const IMG_BED_DOMAIN = "https://wp.fuchen.indevs.in";
 
         let currentNoteId = null;
         let notesData = [];
+        let trashNotesData = [];
         let foldersData = [];
         let currentFilter = 'all';
         let activeMenuNoteId = null;
         let isAuthRegisterMode = false;
         let userProfile = { nickname: '', avatar_url: '', username: '' };
+        let lockDisplayMode = 'all'; // 'all' 或 'locked_only'
 
         function getToken() { return localStorage.getItem('auth_token'); }
         function isLoggedIn() { return !!getToken(); }
         function formatDoc(cmd, value = null) { document.execCommand(cmd, false, value); }
 
         async function initData() {
+            initAppFirstRun();
+            loadSavedSettings();
             await fetchUserProfile();
             await fetchFolders();
+            await fetchTrashNotes();
             await fetchNotes();
-            loadSavedSettings();
+        }
+
+        /* 首次使用天数统计 */
+        function initAppFirstRun() {
+            if (!localStorage.getItem('app_first_run_time')) {
+                localStorage.setItem('app_first_run_time', Date.now().toString());
+            }
+        }
+
+        function calculateDaysInUse() {
+            const firstTime = parseInt(localStorage.getItem('app_first_run_time') || Date.now());
+            const diffMs = Date.now() - firstTime;
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+            return Math.max(1, days);
+        }
+
+        /* 计算文字数量 helper */
+        function getPlainTextLength(htmlContent) {
+            if (!htmlContent) return 0;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            const text = tempDiv.textContent || tempDiv.innerText || '';
+            return text.replace(/\s+/g, '').length;
         }
 
         /* 切换 Tab 页面 */
@@ -372,7 +447,7 @@
             } else if (tab === 'mine') {
                 document.getElementById('tab-mine').classList.add('active');
                 document.getElementById('nav-mine').classList.add('active');
-                fetchUserProfile(); // 切换时刷新用户资料
+                fetchUserProfile();
             }
         }
 
@@ -396,7 +471,7 @@
             return res;
         }
 
-        /* 获取与保存用户资料 (包含头像/昵称) */
+        /* 用户资料读取与保存（修正恢复默认的Bug） */
         async function fetchUserProfile() {
             if (isLoggedIn()) {
                 const res = await apiFetch('/api/user/profile');
@@ -404,33 +479,47 @@
                     userProfile = await res.json();
                 }
             } else {
+                const savedProfile = JSON.parse(localStorage.getItem('guest_profile') || '{}');
                 userProfile = {
                     username: '游客模式',
-                    nickname: localStorage.getItem('guest_nickname') || '游客',
-                    avatar_url: localStorage.getItem('guest_avatar') || 'https://via.placeholder.com/100',
-                    note_count: notesData.length
+                    nickname: savedProfile.nickname || '点击设置昵称',
+                    avatar_url: savedProfile.avatar_url || 'https://via.placeholder.com/100'
                 };
             }
             renderProfileUI();
         }
 
         function renderProfileUI() {
-            document.getElementById('my-nickname').innerText = userProfile.nickname || userProfile.username || '未设置昵称';
+            document.getElementById('my-nickname').innerText = userProfile.nickname || '点击设置昵称';
             document.getElementById('my-username-display').innerText = isLoggedIn() ? `账号: ${userProfile.username}` : '账号: 游客模式';
             document.getElementById('my-avatar-img').src = userProfile.avatar_url || 'https://via.placeholder.com/100';
-            document.getElementById('stat-notes-count').innerText = notesData.length;
             document.getElementById('auth-btn-text').innerText = isLoggedIn() ? '退出当前账号' : '登录账号开启同步';
+            updateCreationStats();
+        }
+
+        function updateCreationStats() {
+            document.getElementById('stat-notes-count').innerText = notesData.length;
+            let totalWords = 0;
+            notesData.forEach(n => {
+                totalWords += (n.title ? n.title.length : 0) + getPlainTextLength(n.content);
+            });
+            document.getElementById('stat-words-count').innerText = totalWords;
+            document.getElementById('stat-days-count').innerText = calculateDaysInUse();
+            document.getElementById('trash-count-display').innerText = trashNotesData.length;
         }
 
         async function editNickname() {
-            const newName = prompt("请输入新昵称：", userProfile.nickname);
-            if (newName && newName.trim()) {
+            const current = (userProfile.nickname === '点击设置昵称') ? '' : userProfile.nickname;
+            const newName = prompt("请输入新昵称：", current);
+            if (newName !== null && newName.trim()) {
                 const trimmed = newName.trim();
                 userProfile.nickname = trimmed;
                 if (isLoggedIn()) {
                     await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ nickname: trimmed }) });
                 } else {
-                    localStorage.setItem('guest_nickname', trimmed);
+                    const savedProfile = JSON.parse(localStorage.getItem('guest_profile') || '{}');
+                    savedProfile.nickname = trimmed;
+                    localStorage.setItem('guest_profile', JSON.stringify(savedProfile));
                 }
                 renderProfileUI();
             }
@@ -442,21 +531,22 @@
             const file = input.files[0];
             if (!file) return;
 
-            // 📸 上传路径：/备忘录/用户头像
             const uploadedUrl = await uploadFileToBed(file, '/备忘录/用户头像');
             if (uploadedUrl) {
                 userProfile.avatar_url = uploadedUrl;
                 if (isLoggedIn()) {
                     await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ avatar_url: uploadedUrl }) });
                 } else {
-                    localStorage.setItem('guest_avatar', uploadedUrl);
+                    const savedProfile = JSON.parse(localStorage.getItem('guest_profile') || '{}');
+                    savedProfile.avatar_url = uploadedUrl;
+                    localStorage.setItem('guest_profile', JSON.stringify(savedProfile));
                 }
                 renderProfileUI();
             }
             input.value = '';
         }
 
-        /* 通用图床上传逻辑 */
+        /* 图床上传 */
         async function uploadFileToBed(file, uploadFolder) {
             const formData = new FormData();
             formData.append('file', file);
@@ -489,7 +579,6 @@
             }
         }
 
-        /* 🖼️ 笔记插入图片 (保存路径改为了：/备忘录/图片内容) */
         function triggerNoteImageSelect() { document.getElementById('note-image-file-input').click(); }
 
         async function uploadNoteImage(input) {
@@ -515,6 +604,7 @@
             editor.focus();
             const imgHtml = `<img src="${url}" style="max-width:100%; border-radius:8px; margin:8px 0; display:block;" /><br>`;
             document.execCommand('insertHTML', false, imgHtml);
+            onEditorInput();
         }
 
         /* 文件夹管理 */
@@ -566,9 +656,100 @@
                 notesData = JSON.parse(localStorage.getItem('guest_notes') || '[]');
             }
             renderNotes();
-            document.getElementById('stat-notes-count').innerText = notesData.length;
+            updateCreationStats();
         }
 
+        /* 最近删除 (7天保留期) 逻辑 */
+        async function fetchTrashNotes() {
+            if (isLoggedIn()) {
+                const res = await apiFetch('/api/notes/trash');
+                if (res && res.ok) trashNotesData = await res.json();
+                else trashNotesData = [];
+            } else {
+                trashNotesData = JSON.parse(localStorage.getItem('guest_trash_notes') || '[]');
+            }
+            // 自动清理超过 7 天的数据
+            const now = Date.now();
+            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+            const validTrash = trashNotesData.filter(n => (now - (n.deleted_at || now)) < sevenDaysMs);
+            
+            if (validTrash.length !== trashNotesData.length) {
+                trashNotesData = validTrash;
+                if (!isLoggedIn()) localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
+            }
+            renderTrashList();
+        }
+
+        function renderTrashList() {
+            const list = document.getElementById('trash-list');
+            if (trashNotesData.length === 0) {
+                list.innerHTML = `<div style="text-align:center; color:#8e8e93; margin-top:60px;">回收站为空</div>`;
+                return;
+            }
+
+            const now = Date.now();
+            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+            list.innerHTML = trashNotesData.map(n => {
+                const deletedTime = n.deleted_at || now;
+                const remainMs = sevenDaysMs - (now - deletedTime);
+                const remainDays = Math.max(1, Math.ceil(remainMs / (1000 * 60 * 60 * 24)));
+                const displayTitle = n.title ? n.title : '无标题备忘录';
+
+                return `
+                    <div class="note-container">
+                        <div class="note-item" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div class="note-title">${escapeHtml(displayTitle)}</div>
+                                <div class="note-item-date">剩余 ${remainDays} 天后自动清除</div>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn" style="font-size:14px;" onclick="restoreTrashNote(${n.id})">恢复</button>
+                                <button class="btn" style="font-size:14px; color:var(--delete-red);" onclick="purgeTrashNote(${n.id})">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('trash-count-display').innerText = trashNotesData.length;
+        }
+
+        async function restoreTrashNote(id) {
+            const noteIndex = trashNotesData.findIndex(n => n.id === id);
+            if (noteIndex === -1) return;
+
+            const [restoredNote] = trashNotesData.splice(noteIndex, 1);
+            delete restoredNote.deleted_at;
+            notesData.push(restoredNote);
+
+            if (!isLoggedIn()) {
+                localStorage.setItem('guest_notes', JSON.stringify(notesData));
+                localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
+            }
+            renderTrashList();
+            fetchNotes();
+        }
+
+        async function purgeTrashNote(id) {
+            if (!confirm("确定要彻底删除该笔记吗？")) return;
+            trashNotesData = trashNotesData.filter(n => n.id !== id);
+            if (!isLoggedIn()) localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
+            renderTrashList();
+            updateCreationStats();
+        }
+
+        async function clearAllTrash() {
+            if (trashNotesData.length === 0) return;
+            if (confirm("确定清空最近删除？所有笔记将彻底消失！")) {
+                trashNotesData = [];
+                if (!isLoggedIn()) localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
+                renderTrashList();
+                updateCreationStats();
+            }
+        }
+
+        /* Auth 相关 */
         function handleAuthButtonClick() {
             if (isLoggedIn()) {
                 if (confirm("确定要退出登录吗？")) {
@@ -676,10 +857,17 @@
             toggleSidebar(false);
         }
 
+        /* 过滤逻辑支持“加锁笔记显示控制” */
         function getFilteredNotes() {
-            if (currentFilter === 'all') return notesData;
+            let list = notesData;
+
+            if (lockDisplayMode === 'locked_only' && currentFilter !== 'locked') {
+                list = list.filter(n => !n.password);
+            }
+
+            if (currentFilter === 'all') return list;
             if (currentFilter === 'locked') return notesData.filter(n => !!n.password);
-            return notesData.filter(n => n.folder_id === currentFilter);
+            return list.filter(n => n.folder_id === currentFilter);
         }
 
         function renderNotes() {
@@ -835,13 +1023,21 @@
             }
 
             setTimeout(async () => {
-                if (isLoggedIn()) {
-                    await apiFetch('/api/notes', { method: 'DELETE', body: JSON.stringify({ id }) });
-                } else {
-                    notesData = notesData.filter(n => n.id !== id);
-                    localStorage.setItem('guest_notes', JSON.stringify(notesData));
+                const targetIndex = notesData.findIndex(n => n.id === id);
+                if (targetIndex !== -1) {
+                    const [deletedNote] = notesData.splice(targetIndex, 1);
+                    deletedNote.deleted_at = Date.now();
+                    trashNotesData.push(deletedNote);
+
+                    if (isLoggedIn()) {
+                        await apiFetch('/api/notes', { method: 'DELETE', body: JSON.stringify({ id }) });
+                    } else {
+                        localStorage.setItem('guest_notes', JSON.stringify(notesData));
+                        localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
+                    }
                 }
                 fetchNotes();
+                renderTrashList();
             }, 200);
         }
 
@@ -892,7 +1088,7 @@
             }
         }
 
-        function handleTouchEnd(e, id) {
+        function handleTouchEnd(e,id) {
             clearTimeout(longPressTimer);
             const item = document.getElementById(`item-${id}`);
             item.classList.remove('pressing');
@@ -948,9 +1144,41 @@
             if (action === 'delete') deleteNote(id, { stopPropagation: () => {} });
         }
 
-        /* 视图弹窗控制 (编辑器 & 设置页) */
+        /* 视图弹窗控制 */
         function openSubView(viewId) { document.getElementById(viewId).classList.add('active'); }
         function closeSubView(viewId) { document.getElementById(viewId).classList.remove('active'); }
+
+        /* 加锁笔记设置 Modal */
+        function openLockModal() {
+            document.getElementById('lock-modal-overlay').classList.add('active');
+            document.getElementById('lock-modal-card').classList.add('active');
+            renderLockModalRadio();
+        }
+
+        function closeLockModal() {
+            document.getElementById('lock-modal-overlay').classList.remove('active');
+            document.getElementById('lock-modal-card').classList.remove('active');
+        }
+
+        function setLockDisplayMode(mode) {
+            lockDisplayMode = mode;
+            saveSettings();
+            renderLockModalRadio();
+            renderNotes();
+            setTimeout(closeLockModal, 150);
+        }
+
+        function renderLockModalRadio() {
+            const radioAll = document.getElementById('radio-lock-all');
+            const radioOnly = document.getElementById('radio-lock-only');
+            if (lockDisplayMode === 'all') {
+                radioAll.classList.add('checked');
+                radioOnly.classList.remove('checked');
+            } else {
+                radioAll.classList.remove('checked');
+                radioOnly.classList.add('checked');
+            }
+        }
 
         function openEditor(id = null) {
             currentNoteId = id;
@@ -967,6 +1195,22 @@
             }
 
             openSubView('editor-view');
+            onEditorInput();
+        }
+
+        /* 编辑器字数实时更新（支持开关） */
+        function onEditorInput() {
+            const showWordCount = document.getElementById('setting-word-count').checked;
+            const tag = document.getElementById('editor-word-count-tag');
+            if (showWordCount) {
+                const title = document.getElementById('note-title-input').value || '';
+                const contentHtml = document.getElementById('note-content-editor').innerHTML || '';
+                const total = title.length + getPlainTextLength(contentHtml);
+                tag.innerText = `${total} 字`;
+                tag.style.display = 'inline';
+            } else {
+                tag.style.display = 'none';
+            }
         }
 
         /* 设置保存与加载 */
@@ -974,8 +1218,8 @@
             const settings = {
                 skin: document.getElementById('setting-skin').checked,
                 wordCount: document.getElementById('setting-word-count').checked,
-                location: document.getElementById('setting-location').checked,
-                fontSize: document.getElementById('setting-font-size-text').innerText
+                fontSize: document.getElementById('setting-font-size-text').innerText,
+                lockDisplayMode: lockDisplayMode
             };
             localStorage.setItem('app_settings', JSON.stringify(settings));
         }
@@ -986,8 +1230,8 @@
                 const settings = JSON.parse(saved);
                 document.getElementById('setting-skin').checked = settings.skin || false;
                 document.getElementById('setting-word-count').checked = settings.wordCount !== false;
-                document.getElementById('setting-location').checked = settings.location || false;
                 document.getElementById('setting-font-size-text').innerText = settings.fontSize || '16';
+                lockDisplayMode = settings.lockDisplayMode || 'all';
             }
         }
 
@@ -1003,4 +1247,3 @@
     </script>
 </body>
 </html>
-     
