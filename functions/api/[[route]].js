@@ -135,25 +135,42 @@ export async function onRequest(context) {
         return jsonRes({ error: "未登录或凭证无效" }, 401);
     }
 
-    // 4. 用户资料接口 (个人信息、修改头像昵称、统计数)
+        // 4. 用户资料接口 (个人信息、修改头像昵称、统计数)
     if (path === '/api/user/profile') {
         if (method === 'GET') {
-            const user = await env.DB.prepare("SELECT username, nickname, avatar_url FROM users WHERE id = ?").bind(userId).first();
-            const noteCountRes = await env.DB.prepare("SELECT COUNT(*) as count FROM notes WHERE user_id = ?").bind(userId).first();
-            return jsonRes({
-                username: user?.username || '',
-                nickname: user?.nickname || user?.username || '未设置昵称',
-                avatar_url: user?.avatar_url || '',
-                note_count: noteCountRes?.count || 0
-            });
+            try {
+                const user = await env.DB.prepare("SELECT username, nickname, avatar_url FROM users WHERE id = ?").bind(userId).first();
+                const noteCountRes = await env.DB.prepare("SELECT COUNT(*) as count FROM notes WHERE user_id = ?").bind(userId).first();
+                return jsonRes({
+                    username: user?.username || '',
+                    nickname: user?.nickname || user?.username || '未设置昵称',
+                    avatar_url: user?.avatar_url || '',
+                    note_count: noteCountRes?.count || 0
+                });
+            } catch (e) {
+                // 加入 try-catch，避免数据库缺字段时全站崩溃
+                return jsonRes({ error: "获取资料失败, 请检查数据库字段: " + e.message }, 500);
+            }
         }
         if (method === 'PUT') {
-            const { nickname, avatar_url } = await request.json();
-            await env.DB.prepare("UPDATE users SET nickname = COALESCE(?, nickname), avatar_url = COALESCE(?, avatar_url) WHERE id = ?")
-                .bind(nickname, avatar_url, userId).run();
-            return jsonRes({ success: true });
+            try {
+                const body = await request.json();
+                
+                // 【关键修复】将 undefined 强转为 null，防止 D1 数据库的 bind() 报错崩溃
+                const newNickname = body.nickname !== undefined ? body.nickname : null;
+                // 兼容前端可能传 avatar_url 或是 avatar 的情况
+                const newAvatarUrl = body.avatar_url !== undefined ? body.avatar_url : (body.avatar !== undefined ? body.avatar : null);
+                
+                await env.DB.prepare("UPDATE users SET nickname = COALESCE(?, nickname), avatar_url = COALESCE(?, avatar_url) WHERE id = ?")
+                    .bind(newNickname, newAvatarUrl, userId).run();
+                
+                return jsonRes({ success: true });
+            } catch (e) {
+                return jsonRes({ error: "更新资料失败: " + e.message }, 500);
+            }
         }
     }
+
 
     // 5. 笔记 CRUD
     if (path === '/api/notes') {
