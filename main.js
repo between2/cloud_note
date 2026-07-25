@@ -552,38 +552,63 @@ async function quickPin(id, event) {
 }
 
 // 替换原生 Prompt/Confirm
+// 替换原有的 quickLock 函数，加入密码验证
 async function quickLock(id, event) {
     if (event) event.stopPropagation();
     resetItem(id);
     const note = notesData.find(n => n.id === id);
     if (!note) return;
 
+    // 如果当前已经是加密状态，左滑或长按选择解密时必须先验证密码
     if (note.password) {
-        const { isConfirmed } = await Swal.fire({
-            title: '解密',
-            text: '是否解密该备忘录？',
-            icon: 'warning',
+        const { value: inputPwd } = await Swal.fire({
+            title: '验证密码',
+            input: 'password',
+            inputPlaceholder: '请输入当前加密密码',
             showCancelButton: true,
             confirmButtonText: '确定解密',
             cancelButtonText: '取消'
         });
-        if (isConfirmed) note.password = '';
+
+        // 如果用户点击了取消或密码错误，直接终止操作
+        if (inputPwd === undefined || inputPwd === null) return;
+        
+        if (inputPwd !== note.password) {
+            Swal.fire('错误', '密码错误，无法解密', 'error');
+            return;
+        }
+
+        // 密码正确，清空密码（即解密）
+        note.password = '';
+        showToast("已成功解密");
     } else {
+        // 如果原本没有密码，则弹出设置密码框
         const { value: pwd } = await Swal.fire({
             title: '设置加密',
             input: 'password',
-            inputPlaceholder: '请输入加密密码',
+            inputPlaceholder: '请输入新的加密密码',
             showCancelButton: true,
             confirmButtonText: '保存',
             cancelButtonText: '取消'
         });
-        if (pwd && pwd.trim()) note.password = pwd.trim();
+        
+        if (pwd && pwd.trim()) {
+            note.password = pwd.trim();
+            showToast("已成功加密");
+        } else {
+            return; // 未输入密码则取消操作
+        }
     }
 
-    if (!isLoggedIn()) localStorage.setItem('guest_notes', JSON.stringify(notesData));
-    else await apiFetch('/api/notes', { method: 'PUT', body: JSON.stringify(note) });
+    // 同步更新本地存储或后端
+    if (!isLoggedIn()) {
+        localStorage.setItem('guest_notes', JSON.stringify(notesData));
+    } else {
+        await apiFetch('/api/notes', { method: 'PUT', body: JSON.stringify(note) });
+    }
     fetchNotes();
 }
+
 
 async function deleteNote(id, event) {
     if (event) event.stopPropagation();
