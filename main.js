@@ -903,5 +903,34 @@ async function submitAuth() {
     showToast(isAuthRegisterMode ? "注册成功" : "登录成功");
     initData();
 }
+// 恢复回收站中的笔记
+async function restoreTrashNote(id) {
+    // 1. 在回收站中查找对应笔记
+    const idx = trashNotesData.findIndex(n => n.id === id);
+    if (idx === -1) return;
+
+    // 2. 从回收站移除并剥离删除标记
+    const [restoredNote] = trashNotesData.splice(idx, 1);
+    delete restoredNote.deleted_at;
+    
+    // 3. 放回正常笔记数组
+    notesData.push(restoredNote);
+
+    // 4. 数据同步存储
+    if (!isLoggedIn()) {
+        localStorage.setItem('guest_notes', JSON.stringify(notesData));
+        localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
+    } else {
+        await apiFetch('/api/notes', { method: 'POST', body: JSON.stringify(restoredNote) });
+        // 通知后端从回收站清除（如果有对应接口）
+        await apiFetch('/api/trash/restore', { method: 'POST', body: JSON.stringify({ id }) }).catch(() => {});
+    }
+
+    // 5. 刷新所有视图
+    fetchNotes();
+    renderTrashList();
+    updateCreationStats();
+    showToast("已成功恢复备忘录");
+}
 
 initData();
