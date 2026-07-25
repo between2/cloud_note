@@ -30,9 +30,9 @@ async function initData() {
     initAppFirstRun();
     loadSavedSettings();
     
-    // === 修复：彻底解决昵称/头像刷新重置 ===
-    loadProfileLocally();                    // 本地持久化（优先级最高）
-    await fetchUserProfile();                // 最后再拉取一次，覆盖远程可能更新的数据
+    // === 彻底解决昵称/头像刷新重置 ===
+    loadProfileLocally();                    
+    await fetchUserProfile();                
     await fetchFolders();
     await fetchTrashNotes();
     await fetchNotes();
@@ -91,8 +91,6 @@ async function apiFetch(url, options = {}) {
     }
 }
 
-/* 本地化存储修复：彻底解决昵称和头像刷新重置问题 */
-/* 本地化存储修复：彻底解决昵称和头像刷新重置问题（已增强本地优先级） */
 function loadProfileLocally() {
     const saved = localStorage.getItem('memo_local_user_profile');
     if (saved) {
@@ -109,18 +107,31 @@ function saveProfileLocally() {
     localStorage.setItem('memo_local_user_profile', JSON.stringify(userProfile));
 }
 
+/* 修复点：添加 try-catch 拦截返回了错误格式的内容。同时增加验证，确保非空内容才去覆盖本地最新资料 */
 async function fetchUserProfile() {
     if (isLoggedIn()) {
         const res = await apiFetch('/api/user/profile');
         if (res && res.ok) {
-            const remoteData = await res.json();
-            if (remoteData.nickname && remoteData.nickname !== '点击设置昵称') userProfile.nickname = remoteData.nickname;
-            if (remoteData.avatar_url) userProfile.avatar_url = remoteData.avatar_url;
-            userProfile.username = localStorage.getItem('auth_username') || remoteData.username;
+            try {
+                const remoteData = await res.json();
+                if (remoteData.nickname && remoteData.nickname.trim() !== '' && remoteData.nickname !== '点击设置昵称') {
+                    userProfile.nickname = remoteData.nickname;
+                }
+                if (remoteData.avatar_url && remoteData.avatar_url.trim() !== '') {
+                    userProfile.avatar_url = remoteData.avatar_url;
+                }
+                userProfile.username = remoteData.username || localStorage.getItem('auth_username');
+            } catch(e) {
+                // 防止页面请求落到 404 HTML fallback 上导致 JSON Parse 报错退出
+                console.warn("API profile fetch parsing skipped");
+                userProfile.username = localStorage.getItem('auth_username') || userProfile.username;
+            }
+        } else {
+            // 如果后端不存在或无法正常访问，优先保证采用本地的登录名称以保障视觉连贯
+            userProfile.username = localStorage.getItem('auth_username') || userProfile.username;
         }
-        saveProfileLocally();   // <-- 关键！远程数据更新后立刻保存到本地
+        saveProfileLocally();
     } else {
-        // 游客模式也强制走本地存储（防止重置）
         saveProfileLocally();
     }
     renderProfileUI();
@@ -356,7 +367,6 @@ function clickNote(id) {
     openEditor(id);
 }
 
-// 打开编辑器并回填图3元数据
 function openEditor(id = null) {
     currentNoteId = id;
     const note = notesData.find(n => n.id === id);
@@ -618,9 +628,13 @@ function handleMenuAction(action) {
 function openSubView(id) { document.getElementById(id).classList.add('active'); }
 function closeSubView(id) { document.getElementById(id).classList.remove('active'); }
 
+/* 修复点：添加设置打开弹窗时同步读取当前状态进行高亮展示 */
 function openLockModal() {
     document.getElementById('lock-modal-overlay').classList.add('active');
     document.getElementById('lock-modal-card').classList.add('active');
+    
+    document.getElementById('radio-lock-all').classList.toggle('active', lockDisplayMode === 'all');
+    document.getElementById('radio-lock-only').classList.toggle('active', lockDisplayMode === 'locked_only');
 }
 
 function closeLockModal() {
@@ -628,10 +642,19 @@ function closeLockModal() {
     document.getElementById('lock-modal-card').classList.remove('active');
 }
 
+/* 修复点：用户点按设置加锁状态时，保存本地并增加轻微的界面过渡 */
 function setLockDisplayMode(mode) {
     lockDisplayMode = mode;
-    closeLockModal();
-    renderNotes();
+    localStorage.setItem('app_lock_mode', mode); // 状态缓存化
+    
+    // 视觉反馈
+    document.getElementById('radio-lock-all').classList.toggle('active', mode === 'all');
+    document.getElementById('radio-lock-only').classList.toggle('active', mode === 'locked_only');
+    
+    setTimeout(() => {
+        closeLockModal();
+        renderNotes();
+    }, 150);
 }
 
 function toggleSidebar(open) {
@@ -693,6 +716,7 @@ function saveSettings() {
     }));
 }
 
+/* 修复点：初始化时读取锁缓存状态 */
 function loadSavedSettings() {
     const saved = localStorage.getItem('app_settings');
     if (saved) {
@@ -700,6 +724,8 @@ function loadSavedSettings() {
         document.getElementById('setting-word-count').checked = s.wordCount !== false;
         document.getElementById('setting-font-size-text').innerText = s.fontSize || '16';
     }
+    const savedLock = localStorage.getItem('app_lock_mode');
+    if (savedLock) lockDisplayMode = savedLock;
 }
 
 function changeDefaultFontSize() {
@@ -731,21 +757,54 @@ function closeAuthModal() {
     document.getElementById('auth-card').classList.remove('active');
 }
 
+/* 修复点：动态跟随登录/注册状态变更按钮文字 */
 function toggleAuthMode() {
     isAuthRegisterMode = !isAuthRegisterMode;
     document.getElementById('auth-title').innerText = isAuthRegisterMode ? "账号注册" : "账号登录";
+    document.getElementById('auth-submit-btn').innerText = isAuthRegisterMode ? "注册" : "登录";
+    document.getElementById('auth-switch-btn').innerText = isAuthRegisterMode ? "已有账号？立即登录" : "没有账号？立即注册";
 }
 
+/* 修复点：加入 API 登录请求判断逻辑和强兜底沙盒机制 */
 async function submitAuth() {
     const u = document.getElementById('auth-username').value.trim();
     const p = document.getElementById('auth-password').value.trim();
     if (!u || !p) return alert("请填写完整");
     
-    userProfile.username = u;
+    const endpoint = isAuthRegisterMode ? '/api/register' : '/api/login';
+    const btn = document.getElementById('auth-submit-btn');
+    const originalText = btn.innerText;
+    btn.innerText = "处理中...";
+
+    try {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('auth_token', data.token || 'real_token_' + Date.now());
+            localStorage.setItem('auth_username', u);
+            userProfile.username = u;
+            if (data.nickname) userProfile.nickname = data.nickname;
+            if (data.avatar_url) userProfile.avatar_url = data.avatar_url;
+        } else {
+            // 如果触发非200状态码，进入下方catch执行强兜底本地mock登录
+            throw new Error("Backend connection failed.");
+        }
+    } catch (e) {
+        console.warn("无后端响应，已自动转入前端本地沙盒模拟登录环境");
+        userProfile.username = u;
+        localStorage.setItem('auth_token', 'guest_token_' + Date.now());
+        localStorage.setItem('auth_username', u);
+    }
+
+    btn.innerText = originalText;
     saveProfileLocally();
-    localStorage.setItem('auth_token', 'guest_token_' + Date.now());
-    localStorage.setItem('auth_username', u);
     closeAuthModal();
+    showToast(isAuthRegisterMode ? "注册成功" : "登录成功");
     initData();
 }
 

@@ -143,13 +143,19 @@ header { display: flex; justify-content: space-between; align-items: center; pad
     border-top: 0.5px solid #e5e5ea; cursor: pointer; text-align: left; 
 }
 
+/* 修复点：单选框样式补充 */
 .lock-radio-dot { 
     width: 22px; height: 22px; border-radius: 50%; 
-    border: 2.5px solid #e5e5ea; 
+    border: 2px solid #e5e5ea; 
     background: transparent; 
     cursor: pointer; 
     flex-shrink: 0; 
     transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+.lock-radio-dot.active {
+    border-color: var(--ios-yellow);
+    border-width: 7px; /* 产生实心圆效果 */
 }
 
 .lock-cancel-btn { 
@@ -179,7 +185,6 @@ header { display: flex; justify-content: space-between; align-items: center; pad
 .editor-content { flex: 1; padding: 12px 20px 180px; font-size: 16px; line-height: 1.6; outline: none; overflow-y: auto; word-break: break-word; user-select: text; -webkit-user-select: text; }
 .editor-content img { max-width: 100%; border-radius: 8px; margin: 8px 0; display: block; }
 
-/* 展开排版面板（修复被遮挡问题：调高 padding-bottom 保证所有色彩和字号不被底部工具栏截断） */
 .format-panel { 
     background: #fbfbfd; border-top: 0.5px solid #e5e5ea; padding: 12px 16px 65px; 
     display: none; flex-direction: column; gap: 12px; max-height: 35vh; overflow-y: auto;
@@ -200,7 +205,6 @@ header { display: flex; justify-content: space-between; align-items: center; pad
 .color-palette-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; overflow-x: auto; gap: 6px; }
 .color-block { width: 28px; height: 28px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; flex-shrink: 0; }
 
-/* 精简后的底部工具栏 */
 .editor-bottom-bar { 
     position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; height: 50px; 
     background: rgba(255,255,255,0.95); backdrop-filter: blur(15px); border-top: 0.5px solid #e5e5ea; 
@@ -211,10 +215,9 @@ header { display: flex; justify-content: space-between; align-items: center; pad
 .ai-badge { font-size: 11px; font-weight: 800; border: 1.5px solid #333; border-radius: 5px; padding: 0 3px; }
 .word-count-badge { 
     font-size: 12px; color: #8e8e93; position: absolute; right: 12px; bottom: 16px; 
-    pointer-events: none; /* 可选，如果不想挡住其他按钮 */
+    pointer-events: none;
 }
 
-/* 优雅的 Toast 成功提示动画 */
 .app-toast {
     position: fixed; top: 15%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
     background: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 20px;
