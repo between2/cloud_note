@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>备忘录</title>
+    <!-- 引入 SweetAlert2 美化弹窗 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -58,7 +60,7 @@
         <!-- 其他设置 卡片列表 -->
         <div class="section-title">其他设置</div>
         <div class="list-card">
-            <div class="list-row" onclick="alert('可以直接使用手机/电脑浏览器打开当前网址，登录账号即可跨端协同编辑笔记。')">
+            <div class="list-row" onclick="Swal.fire('提示', '可以直接使用手机/电脑浏览器打开当前网址，登录账号即可跨端协同编辑笔记。', 'info')">
                 <span>在电脑、iPad 编辑笔记</span>
                 <span class="chevron">></span>
             </div>
@@ -233,7 +235,7 @@
         </div>
 
         <div class="editor-bottom-bar">
-            <button class="bottom-tool-btn" onclick="alert('AI 辅助已就绪')"><span class="ai-badge">AI</span></button>
+            <button class="bottom-tool-btn" onclick="Swal.fire('提示', 'AI 辅助已就绪', 'success')"><span class="ai-badge">AI</span></button>
             <button class="bottom-tool-btn active" id="btn-toggle-aa" onclick="toggleAaPanel()">Aa</button>
             <button class="bottom-tool-btn" onclick="formatDoc('insertUnorderedList')">≡</button>
             <button class="bottom-tool-btn" id="img-upload-btn" onclick="triggerNoteImageSelect()">🖼</button>

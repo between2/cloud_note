@@ -143,7 +143,6 @@ header { display: flex; justify-content: space-between; align-items: center; pad
     border-top: 0.5px solid #e5e5ea; cursor: pointer; text-align: left; 
 }
 
-/* 修复点：单选框样式补充 */
 .lock-radio-dot { 
     width: 22px; height: 22px; border-radius: 50%; 
     border: 2px solid #e5e5ea; 
@@ -155,7 +154,7 @@ header { display: flex; justify-content: space-between; align-items: center; pad
 }
 .lock-radio-dot.active {
     border-color: var(--ios-yellow);
-    border-width: 7px; /* 产生实心圆效果 */
+    border-width: 7px;
 }
 
 .lock-cancel-btn { 

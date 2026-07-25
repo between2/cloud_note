@@ -107,7 +107,6 @@ function saveProfileLocally() {
     localStorage.setItem('memo_local_user_profile', JSON.stringify(userProfile));
 }
 
-/* 修复点：添加 try-catch 拦截返回了错误格式的内容。同时增加验证，确保非空内容才去覆盖本地最新资料 */
 async function fetchUserProfile() {
     if (isLoggedIn()) {
         const res = await apiFetch('/api/user/profile');
@@ -122,12 +121,10 @@ async function fetchUserProfile() {
                 }
                 userProfile.username = remoteData.username || localStorage.getItem('auth_username');
             } catch(e) {
-                // 防止页面请求落到 404 HTML fallback 上导致 JSON Parse 报错退出
                 console.warn("API profile fetch parsing skipped");
                 userProfile.username = localStorage.getItem('auth_username') || userProfile.username;
             }
         } else {
-            // 如果后端不存在或无法正常访问，优先保证采用本地的登录名称以保障视觉连贯
             userProfile.username = localStorage.getItem('auth_username') || userProfile.username;
         }
         saveProfileLocally();
@@ -156,10 +153,20 @@ function updateCreationStats() {
     document.getElementById('trash-count-display').innerText = trashNotesData.length;
 }
 
+// 替换原生 Prompt
 async function editNickname() {
     const current = (userProfile.nickname === '点击设置昵称') ? '' : userProfile.nickname;
-    const newName = prompt("请输入新昵称：", current);
-    if (newName !== null && newName.trim()) {
+    const { value: newName } = await Swal.fire({
+        title: '修改昵称',
+        input: 'text',
+        inputValue: current,
+        inputPlaceholder: '请输入新昵称',
+        showCancelButton: true,
+        confirmButtonText: '保存',
+        cancelButtonText: '取消'
+    });
+    
+    if (newName !== undefined && newName !== null && newName.trim()) {
         userProfile.nickname = newName.trim();
         saveProfileLocally();
         renderProfileUI();
@@ -217,7 +224,7 @@ async function uploadFileToBed(file, uploadFolder) {
         }
         return imageUrl;
     } catch (e) {
-        alert("图片上传失败");
+        Swal.fire('错误', '图片上传失败', 'error');
         return null;
     }
 }
@@ -250,8 +257,17 @@ async function fetchFolders() {
     renderSidebar();
 }
 
+// 替换原生 Prompt
 async function createNewFolder() {
-    const name = prompt("输入新文件夹名称：");
+    const { value: name } = await Swal.fire({
+        title: '新建文件夹',
+        input: 'text',
+        inputPlaceholder: '输入新文件夹名称',
+        showCancelButton: true,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+    });
+    
     if (name && name.trim()) {
         if (isLoggedIn()) {
             await apiFetch('/api/folders', { method: 'POST', body: JSON.stringify({ name: name.trim() }) });
@@ -355,14 +371,26 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function clickNote(id) {
+// 修改点：拦截加密笔记逻辑并使用 UI 密码框
+async function clickNote(id) {
     if (currentOpenId !== null) return resetItem(currentOpenId);
     const note = notesData.find(n => n.id === id);
     if (!note) return;
 
     if (note.password) {
-        const input = prompt("请输入加密密码：");
-        if (input !== note.password) return alert("密码错误！");
+        const { value: input } = await Swal.fire({
+            title: '受保护的笔记',
+            input: 'password',
+            inputPlaceholder: '请输入加密密码',
+            showCancelButton: true,
+            confirmButtonText: '解密',
+            cancelButtonText: '取消'
+        });
+        
+        if (!input || input !== note.password) {
+            Swal.fire('失败', '密码错误或取消解密', 'error');
+            return;
+        }
     }
     openEditor(id);
 }
@@ -391,14 +419,28 @@ function openEditor(id = null) {
     onEditorInput();
 }
 
-function promptChangeFolder() {
+// 替换原生 Prompt
+async function promptChangeFolder() {
     if (foldersData.length === 0) {
-        return alert("暂无可用文件夹，请先在侧边栏新建文件夹。");
+        return Swal.fire('提示', '暂无可用文件夹，请先在侧边栏新建文件夹。', 'info');
     }
-    let folderNames = foldersData.map((f, i) => `${i + 1}. ${f.name}`).join('\n');
-    let sel = prompt(`请选择分类编号：\n0. 未分类\n` + folderNames);
-    if (sel !== null) {
-        if (sel.trim() === '0') {
+    
+    let inputOptions = { '0': '未分类' };
+    foldersData.forEach((f, i) => {
+        inputOptions[(i + 1).toString()] = f.name;
+    });
+
+    const { value: sel } = await Swal.fire({
+        title: '选择分类',
+        input: 'select',
+        inputOptions: inputOptions,
+        showCancelButton: true,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+    });
+    
+    if (sel !== undefined && sel !== null) {
+        if (sel === '0') {
             document.getElementById('editor-folder-display').innerText = '未分类 ∨';
             if (currentNoteId) {
                 const note = notesData.find(n => n.id === currentNoteId);
@@ -509,6 +551,7 @@ async function quickPin(id, event) {
     fetchNotes();
 }
 
+// 替换原生 Prompt/Confirm
 async function quickLock(id, event) {
     if (event) event.stopPropagation();
     resetItem(id);
@@ -516,9 +559,24 @@ async function quickLock(id, event) {
     if (!note) return;
 
     if (note.password) {
-        if (confirm("是否解密该备忘录？")) note.password = '';
+        const { isConfirmed } = await Swal.fire({
+            title: '解密',
+            text: '是否解密该备忘录？',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '确定解密',
+            cancelButtonText: '取消'
+        });
+        if (isConfirmed) note.password = '';
     } else {
-        const pwd = prompt("设置加密密码：");
+        const { value: pwd } = await Swal.fire({
+            title: '设置加密',
+            input: 'password',
+            inputPlaceholder: '请输入加密密码',
+            showCancelButton: true,
+            confirmButtonText: '保存',
+            cancelButtonText: '取消'
+        });
         if (pwd && pwd.trim()) note.password = pwd.trim();
     }
 
@@ -628,7 +686,6 @@ function handleMenuAction(action) {
 function openSubView(id) { document.getElementById(id).classList.add('active'); }
 function closeSubView(id) { document.getElementById(id).classList.remove('active'); }
 
-/* 修复点：添加设置打开弹窗时同步读取当前状态进行高亮展示 */
 function openLockModal() {
     document.getElementById('lock-modal-overlay').classList.add('active');
     document.getElementById('lock-modal-card').classList.add('active');
@@ -642,7 +699,6 @@ function closeLockModal() {
     document.getElementById('lock-modal-card').classList.remove('active');
 }
 
-/* 修复点：用户点按设置加锁状态时，保存本地并增加轻微的界面过渡 */
 function setLockDisplayMode(mode) {
     lockDisplayMode = mode;
     localStorage.setItem('app_lock_mode', mode); // 状态缓存化
@@ -688,20 +744,19 @@ function renderTrashList() {
     `).join('');
 }
 
-function restoreTrashNote(id) {
-    const idx = trashNotesData.findIndex(n => n.id === id);
-    if (idx !== -1) {
-        const [res] = trashNotesData.splice(idx, 1);
-        notesData.push(res);
-        localStorage.setItem('guest_notes', JSON.stringify(notesData));
-        localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
-        renderTrashList();
-        fetchNotes();
-    }
-}
-
-function clearAllTrash() {
-    if (confirm("确定清空最近删除？")) {
+// 替换原生 Confirm
+async function clearAllTrash() {
+    const { isConfirmed } = await Swal.fire({
+        title: '清空回收站',
+        text: '确定清空最近删除？此操作不可逆。',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '确定清空',
+        cancelButtonText: '取消',
+        confirmButtonColor: '#ff3b30'
+    });
+    
+    if (isConfirmed) {
         trashNotesData = [];
         localStorage.setItem('guest_trash_notes', JSON.stringify(trashNotesData));
         renderTrashList();
@@ -716,7 +771,6 @@ function saveSettings() {
     }));
 }
 
-/* 修复点：初始化时读取锁缓存状态 */
 function loadSavedSettings() {
     const saved = localStorage.getItem('app_settings');
     if (saved) {
@@ -728,17 +782,37 @@ function loadSavedSettings() {
     if (savedLock) lockDisplayMode = savedLock;
 }
 
-function changeDefaultFontSize() {
-    const size = prompt("请输入默认字号：", document.getElementById('setting-font-size-text').innerText);
+// 替换原生 Prompt
+async function changeDefaultFontSize() {
+    const { value: size } = await Swal.fire({
+        title: '修改字号',
+        input: 'number',
+        inputValue: document.getElementById('setting-font-size-text').innerText,
+        showCancelButton: true,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+    });
+    
     if (size && !isNaN(size)) {
         document.getElementById('setting-font-size-text').innerText = size.trim();
         saveSettings();
     }
 }
 
-function handleAuthButtonClick() {
+// 替换原生 Confirm
+async function handleAuthButtonClick() {
     if (isLoggedIn()) {
-        if (confirm("确定要退出登录吗？")) {
+        const { isConfirmed } = await Swal.fire({
+            title: '退出登录',
+            text: '确定要退出当前账号吗？',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '退出',
+            cancelButtonText: '取消',
+            confirmButtonColor: '#ff3b30'
+        });
+        
+        if (isConfirmed) {
             localStorage.removeItem('auth_token');
             initData();
         }
@@ -757,7 +831,6 @@ function closeAuthModal() {
     document.getElementById('auth-card').classList.remove('active');
 }
 
-/* 修复点：动态跟随登录/注册状态变更按钮文字 */
 function toggleAuthMode() {
     isAuthRegisterMode = !isAuthRegisterMode;
     document.getElementById('auth-title').innerText = isAuthRegisterMode ? "账号注册" : "账号登录";
@@ -765,11 +838,10 @@ function toggleAuthMode() {
     document.getElementById('auth-switch-btn').innerText = isAuthRegisterMode ? "已有账号？立即登录" : "没有账号？立即注册";
 }
 
-/* 修复点：加入 API 登录请求判断逻辑和强兜底沙盒机制 */
 async function submitAuth() {
     const u = document.getElementById('auth-username').value.trim();
     const p = document.getElementById('auth-password').value.trim();
-    if (!u || !p) return alert("请填写完整");
+    if (!u || !p) return Swal.fire('提示', '请填写完整', 'warning');
     
     const endpoint = isAuthRegisterMode ? '/api/register' : '/api/login';
     const btn = document.getElementById('auth-submit-btn');
@@ -791,7 +863,6 @@ async function submitAuth() {
             if (data.nickname) userProfile.nickname = data.nickname;
             if (data.avatar_url) userProfile.avatar_url = data.avatar_url;
         } else {
-            // 如果触发非200状态码，进入下方catch执行强兜底本地mock登录
             throw new Error("Backend connection failed.");
         }
     } catch (e) {
