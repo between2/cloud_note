@@ -165,18 +165,25 @@ async function editNickname() {
         confirmButtonText: '保存',
         cancelButtonText: '取消'
     });
-    
+
     if (newName !== undefined && newName !== null && newName.trim()) {
         userProfile.nickname = newName.trim();
         saveProfileLocally();
         renderProfileUI();
-        showToast("昵称修改成功");
 
         if (isLoggedIn()) {
-            await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ nickname: userProfile.nickname }) });
+            const res = await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ nickname: userProfile.nickname }) });
+            if (res && res.ok) {
+                showToast("昵称已同步至云端");
+            } else {
+                Swal.fire('同步失败', '云端保存失败，请检查后端报错或数据库字段', 'error');
+            }
+        } else {
+            showToast("昵称修改成功 (仅本地)");
         }
     }
 }
+
 
 function triggerAvatarUpload() { document.getElementById('avatar-file-input').click(); }
 
@@ -189,14 +196,21 @@ async function handleAvatarSelected(input) {
         userProfile.avatar_url = uploadedUrl;
         saveProfileLocally();
         renderProfileUI();
-        showToast("头像修改成功");
 
         if (isLoggedIn()) {
-            await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ avatar_url: uploadedUrl }) });
+            const res = await apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify({ avatar_url: uploadedUrl }) });
+            if (res && res.ok) {
+                showToast("头像已同步至云端");
+            } else {
+                Swal.fire('同步失败', '云端保存失败，请检查后端报错或数据库字段', 'error');
+            }
+        } else {
+            showToast("头像修改成功 (仅本地)");
         }
     }
     input.value = '';
 }
+
 
 async function uploadFileToBed(file, uploadFolder) {
     const formData = new FormData();
